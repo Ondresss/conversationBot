@@ -3,7 +3,9 @@
 //
 
 #pragma once
+#include <memory>
 #include <rtaudio/RtAudio.h>
+#include "IAudioFilter.h"
 
 class AudioHandler {
 public:
@@ -13,14 +15,17 @@ public:
 
     void startRecording();
     void stopRecording();
+    void handleAudioInput(float* samples,unsigned int nBufferFrames);
 private:
     void init();
-    void handleAudioInput(float* samples,unsigned int nBufferFrames);
+    bool applyFilters(float* samples,unsigned int nBufferFrames);
     void loadDeviceIds();
+
     RtAudio::StreamParameters parameters;
     RtAudio audio;
     unsigned int sampleRate;
     unsigned int bufferFrames;
     std::vector<std::tuple<unsigned int,RtAudio::DeviceInfo>> devices;
+    std::vector<std::shared_ptr<IAudioFilter>> filters;
 };
 

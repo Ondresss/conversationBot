@@ -5,13 +5,20 @@
 #include "../headers/SilenceFilter.h"
 
 
-bool SilenceFilter::silence(float* sample, unsigned int nBufferFrames) {
-    const float floatMax = std::numeric_limits<float>::max();
-    const float floatMin = std::numeric_limits<float>::min();
-    std::pair<int,int> minMaxIndexes{-1,-1};
+bool SilenceFilter::filter(const float* sample, unsigned int nBufferFrames) {
+    float sampleMin = std::numeric_limits<float>::max();
+    float sampleMax = std::numeric_limits<float>::min();
     for (int i = 0; i < nBufferFrames; ++i) {
-
+        if (sample[i] < sampleMin){
+            sampleMin = sample[i];
+        }
+        if (sample[i] > sampleMax) {
+            sampleMax = sample[i];
+        }
     }
-
-
+    float diff = sampleMax - sampleMin;
+    if (diff < threshold){
+        return true;
+    }
+    return false;
 }

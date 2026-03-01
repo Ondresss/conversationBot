@@ -4,6 +4,8 @@
 
 #include "../headers/AudioHandler.h"
 
+#include "../headers/SilenceFilter.h"
+
 AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames) {
     this->loadDeviceIds();
     this->parameters = {
@@ -17,7 +19,7 @@ AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsi
 
 int AudioHandler::recordCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime,
     RtAudioStreamStatus status, void* userData) {
-
+    auto handler = static_cast<AudioHandler*>(userData);
     if ( status ) std::cout << "Stream over/underflow detected." << std::endl;
     auto samples = static_cast<float*>(inputBuffer);
 
@@ -25,6 +27,9 @@ int AudioHandler::recordCallback(void* outputBuffer, void* inputBuffer, unsigned
     std::cout << "streamTime: " << streamTime << std::endl;
     std::cout << "status: " << status << std::endl;
 
+    if (handler->applyFilters(samples,nBufferFrames)) {
+        std::cout << "AudioHandler::applyFilters successfully applied." << std::endl;
+    }
     return 0;
 }
 
@@ -52,6 +57,7 @@ void AudioHandler::init() {
     try {
         this->audio.openStream(nullptr,&this->parameters,
     RTAUDIO_FLOAT32,this->sampleRate,&this->bufferFrames,&AudioHandler::recordCallback,this);
+        this->filters.push_back(std::make_shared<SilenceFilter>(0.02));
     } catch( RtAudioError& e ){
         std::cerr << "Error when initializing audio stream." << std::endl;
         std::cerr << e.getMessage() << std::endl;
@@ -59,7 +65,20 @@ void AudioHandler::init() {
     }
 }
 
+bool AudioHandler::applyFilters(float* samples, unsigned int nBufferFrames) {
+    bool result = true;
+    for (const auto& filter : this->filters) {
+        result = result && filter->filter(samples,nBufferFrames);
+    }
+    return result;
+
+}
+
 void AudioHandler::handleAudioInput(float* samples, unsigned int nBufferFrames) {
+
+}
+
+void AudioHandler::loadDeviceIds() {
     const unsigned int count = audio.getDeviceCount();
     for (unsigned int i = 0; i < count; i++) {
         RtAudio::DeviceInfo info = audio.getDeviceInfo(i);
@@ -68,10 +87,5 @@ void AudioHandler::handleAudioInput(float* samples, unsigned int nBufferFrames) 
             std::cout << "Device " << i << ": " << info.name << std::endl;
         }
     }
-
-}
-
-void AudioHandler::loadDeviceIds()
-{
 }
 
