@@ -24,3 +24,15 @@
 
 6. make -j$(nproc)
 
+### Install RT-audio (Source)
+1. git clone https://github.com/thestk/rtaudio.git
+2. cd rtaudio
+3. mkdir build && cd build
+4. cmake ..
+5. make
+6. sudo make install
+
+### Install RT-audio (Package)
+1. sudo apt update
+2. sudo apt install librtaudio-dev
+
