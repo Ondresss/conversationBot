@@ -15,7 +15,11 @@ find_path(RTAUDIO_INCLUDE_DIR RtAudio.h)
 message(STATUS "Sherpa include: ${SHERPA_INCLUDE_DIR}")
 message(STATUS "Sherpa lib: ${SHERPA_LIB}")
 
-add_executable(conversationBot src/main.cpp)
+add_executable(conversationBot src/main.cpp
+        headers/AudioHandler.h
+        src/AudioHandler.cpp
+        headers/SilenceFilter.h
+        src/SilenceFilter.cpp)
 
 if(SHERPA_INCLUDE_DIR AND SHERPA_LIB)
     target_include_directories(conversationBot PRIVATE ${SHERPA_INCLUDE_DIR})
