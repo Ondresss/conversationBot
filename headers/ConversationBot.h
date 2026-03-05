@@ -4,12 +4,14 @@
 #pragma once
 #include <memory>
 #include "AudioHandler.h"
-class ConversationBot {
-public:
-    ConversationBot(std::shared_ptr<AudioHandler> audioHandler,std::string modelPath)
-    : audioHandler(audioHandler),modelPath(std::move(modelPath)) {}
+#include "ConversationClient.h"
 
+class ConversationBot{
+public:
+    ConversationBot(std::shared_ptr<AudioHandler> audioHandler,std::shared_ptr<ConversationClient> client)
+    : audioHandler(std::move(audioHandler)),client(std::move(client)) {}
+    void run();
 private:
     std::shared_ptr<AudioHandler> audioHandler;
-    std::string modelPath;
+    std::shared_ptr<ConversationClient> client;
 };
