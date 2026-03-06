@@ -17,27 +17,70 @@ AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsi
     this->init();
 }
 
+int AudioHandler::checkForEndSentence(AudioType type) {
+    if (type == AudioType::SILENCE) {
+        this->silenceCounter++;
+    } else {
+        this->silenceCounter = 0;
+        return 0;
+    }
+
+    const int endSentenceThreshold = 20;
+
+    if (this->silenceCounter >= endSentenceThreshold && this->speechCounter > 0) {
+        this->speechCounter = 0;
+        this->silenceCounter = 0;
+        return 1;
+    }
+    return 0;
+}
+
+int AudioHandler::checkForStartSentence() {
+    if (this->speechCounter > 0) return 0;
+
+    this->speechCounter = 1;
+    return 1;
+}
+
+
+bool AudioHandler::hasPackets() {
+    std::lock_guard<std::mutex> lock(this->queueMtx);
+    return !this->audioQueue.empty();
+}
+
+
+
+
 int AudioHandler::recordCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime,
     RtAudioStreamStatus status, void* userData) {
     auto handler = static_cast<AudioHandler*>(userData);
-    if ( status ) std::cout << "Stream over/underflow detected." << std::endl;
+    if ( status ) {
+        std::cout << "Stream over/underflow detected." << std::endl;
+        return 1;
+    }
     auto samples = static_cast<float*>(inputBuffer);
-
-    std::cout << "nBufferFrames: " << nBufferFrames << std::endl;
-    std::cout << "streamTime: " << streamTime << std::endl;
-    std::cout << "status: " << status << std::endl;
     std::lock_guard<std::mutex> lock(handler->getMutex());
     auto filterRes = handler->applyFilters(samples,nBufferFrames);
+    const int endOfSentence = handler->checkForEndSentence(filterRes);
+    if (endOfSentence) {
+        AudioPacket audioPacket;
+        audioPacket.type = AudioType::ENDOFSPEECH;
+        audioPacket.samples = {};
+        handler->pushAudioPacket(audioPacket);
+        handler->resetSilenceCounter();
+        handler->setLastAudioType(AudioType::ENDOFSPEECH);
+        return 0;
+    }
     if (filterRes == AudioType::SILENCE) {
-        std::cout << "AudioHandler::applyFilters successfully applied." << std::endl;
-        AudioHandler::AudioPacket audioPacket;
+        AudioPacket audioPacket;
         audioPacket.type = AudioType::SILENCE;
         audioPacket.samples = {};
         handler->pushAudioPacket(audioPacket);
     }
     else {
-        AudioHandler::AudioPacket audioPacket;
-        audioPacket.type = AudioType::SPEECH;
+        int startSpeech = handler->checkForStartSentence();
+        AudioPacket audioPacket;
+        audioPacket.type = startSpeech == 1 ? AudioType::STARTOFSPEECH : AudioType::SPEECH;
         audioPacket.samples = std::vector<float>(samples,samples + nBufferFrames);
         handler->pushAudioPacket(audioPacket);
     }

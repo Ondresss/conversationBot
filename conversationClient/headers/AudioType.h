@@ -6,5 +6,6 @@ enum class AudioType {
     SPEECH,
     SILENCE,
     ENDOFSPEECH,
+    STARTOFSPEECH,
     NONE
 };

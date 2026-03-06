@@ -24,6 +24,13 @@ public:
     AudioPacket getNextAudioPacket();
     void pushAudioPacket(AudioPacket audioPacket) { this->audioQueue.push(std::move(audioPacket)); }
     std::mutex& getMutex() {return this->queueMtx;}
+    int checkForEndSentence(AudioType type);
+    int checkForStartSentence();
+    void resetSilenceCounter() {this->silenceCounter = 0;};
+    void setLastAudioType(AudioType type) {this->lastAudioType = type;}
+    [[nodiscard]] AudioType getLastAudioType() const {return this->lastAudioType;}
+    bool hasPackets();
+
 private:
     void init();
     AudioType applyFilters(const float* samples,unsigned int nBufferFrames);
@@ -37,5 +44,9 @@ private:
     std::vector<std::shared_ptr<IAudioFilter>> filters;
     std::mutex queueMtx;
     std::queue<AudioPacket> audioQueue;
+
+    int silenceCounter = 0;
+    int speechCounter = 0;
+    AudioType lastAudioType = AudioType::NONE;
 };
 
