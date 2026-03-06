@@ -23,7 +23,8 @@ add_executable(conversationBot src/main.cpp
         headers/IAudioFilter.h
         headers/ConversationBot.h
         src/ConversationBot.cpp
-        headers/ConversationClient.h)
+        headers/ConversationClient.h
+        headers/AudioType.h)
 
 if(SHERPA_INCLUDE_DIR AND SHERPA_LIB)
     target_include_directories(conversationBot PRIVATE ${SHERPA_INCLUDE_DIR})

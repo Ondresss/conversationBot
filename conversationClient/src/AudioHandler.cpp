@@ -26,9 +26,20 @@ int AudioHandler::recordCallback(void* outputBuffer, void* inputBuffer, unsigned
     std::cout << "nBufferFrames: " << nBufferFrames << std::endl;
     std::cout << "streamTime: " << streamTime << std::endl;
     std::cout << "status: " << status << std::endl;
-
-    if (handler->applyFilters(samples,nBufferFrames)) {
+    std::lock_guard<std::mutex> lock(handler->getMutex());
+    auto filterRes = handler->applyFilters(samples,nBufferFrames);
+    if (filterRes == AudioType::SILENCE) {
         std::cout << "AudioHandler::applyFilters successfully applied." << std::endl;
+        AudioHandler::AudioPacket audioPacket;
+        audioPacket.type = AudioType::SILENCE;
+        audioPacket.samples = {};
+        handler->pushAudioPacket(audioPacket);
+    }
+    else {
+        AudioHandler::AudioPacket audioPacket;
+        audioPacket.type = AudioType::SPEECH;
+        audioPacket.samples = std::vector<float>(samples,samples + nBufferFrames);
+        handler->pushAudioPacket(audioPacket);
     }
     return 0;
 }
@@ -57,7 +68,7 @@ void AudioHandler::init() {
     try {
         this->audio.openStream(nullptr,&this->parameters,
     RTAUDIO_FLOAT32,this->sampleRate,&this->bufferFrames,&AudioHandler::recordCallback,this);
-        this->filters.push_back(std::make_shared<SilenceFilter>(0.02));
+        this->filters.push_back(std::make_shared<SilenceFilter>(0.008));
     } catch( RtAudioError& e ){
         std::cerr << "Error when initializing audio stream." << std::endl;
         std::cerr << e.getMessage() << std::endl;
@@ -65,17 +76,20 @@ void AudioHandler::init() {
     }
 }
 
-bool AudioHandler::applyFilters(float* samples, unsigned int nBufferFrames) {
-    bool result = true;
+AudioType AudioHandler::applyFilters(const float* samples, unsigned int nBufferFrames) {
     for (const auto& filter : this->filters) {
-        result = result && filter->filter(samples,nBufferFrames);
+        if (filter->filter(samples,nBufferFrames)) {
+            return filter->getActionType();
+        }
     }
-    return result;
-
+    return AudioType::NONE;
 }
 
-void AudioHandler::handleAudioInput(float* samples, unsigned int nBufferFrames) {
-
+AudioHandler::AudioPacket AudioHandler::getNextAudioPacket() {
+    std::lock_guard<std::mutex> lock(this->queueMtx);
+    auto packet = this->audioQueue.front();
+    this->audioQueue.pop();
+    return packet;
 }
 
 void AudioHandler::loadDeviceIds() {

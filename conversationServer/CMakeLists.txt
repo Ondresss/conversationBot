@@ -14,7 +14,7 @@ message(STATUS "Sherpa include: ${SHERPA_INCLUDE_DIR}")
 message(STATUS "Sherpa lib: ${SHERPA_LIB}")
 
 add_executable(conversationServer src/main.cpp
-        ../src/ConversationClient.cpp)
+        ../conversationClient/src/ConversationClient.cpp)
 
 if(SHERPA_INCLUDE_DIR AND SHERPA_LIB)
     target_include_directories(conversationServer PRIVATE ${SHERPA_INCLUDE_DIR})
