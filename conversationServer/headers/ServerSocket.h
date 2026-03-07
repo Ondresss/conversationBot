@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <cstring>
+#include <memory>
 #include <stdexcept>
 #include <arpa/inet.h>
 #include <vector>
@@ -20,7 +21,7 @@ public:
     explicit ServerSocket(ServerInfo serverInfo) : serverInfo(std::move(serverInfo)) {
         this->init();
     };
-    Client waitForConnection();
+    std::shared_ptr<Client> waitForConnection();
 private:
     void init();
     int fd = -1;

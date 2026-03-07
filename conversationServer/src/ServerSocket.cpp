@@ -3,6 +3,8 @@
 //
 #include "../headers/ServerSocket.h"
 
+#include <iostream>
+
 void ServerSocket::init() {
     this->fd = socket(AF_INET, SOCK_STREAM, 0);
     if (this->fd == -1) throw std::runtime_error("ServerSocket::init(): Error creating socket");
@@ -19,20 +21,21 @@ void ServerSocket::init() {
     if (listen(this->fd, 10) < 0) {
         throw std::runtime_error("ServerSocket::init(): Listen failed");
     }
+    std::cout << "Server socket started on IP and PORT: " << this->serverInfo.ip << ", " << this->serverInfo.port << std::endl;
 }
 
-ServerSocket::Client ServerSocket::waitForConnection() {
+std::shared_ptr<ServerSocket::Client> ServerSocket::waitForConnection() {
     socklen_t addrLen = sizeof(this->cliAddr);
     int currentClientFd = accept(this->fd, reinterpret_cast<struct sockaddr*>(&this->cliAddr), &addrLen);
     if (currentClientFd == -1) {
         throw std::runtime_error("ServerSocket::waitForConnection(): accept failed");
     }
-    Client client{};
-    client.clientFd = currentClientFd;
+    auto clientSocket = std::make_shared<Client>();
     char ipStr[INET_ADDRSTRLEN];
     if (inet_ntop(AF_INET, &(this->cliAddr.sin_addr), ipStr, INET_ADDRSTRLEN)) {
-        client.clientIP = std::string(ipStr);
+        clientSocket->clientIP = std::string(ipStr);
     }
-    client.port = ntohs(this->cliAddr.sin_port);
-    return client;
+    clientSocket->clientFd = currentClientFd;
+    clientSocket->port = ntohs(this->cliAddr.sin_port);
+    return clientSocket;
 }

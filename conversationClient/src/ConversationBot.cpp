@@ -19,14 +19,17 @@ void ConversationBot::run() {
         case AudioType::STARTOFSPEECH:
             noSilencePackets = 0;
             std::cout << "Start of speech detected\n";
+            this->client->sendAudioPacket(audioPacket);
             break;
         case AudioType::ENDOFSPEECH:
             noSilencePackets = 0;
             std::cout << "End of speech detected\n";
+            this->client->sendAudioPacket(audioPacket);
             break;
         case AudioType::SPEECH:
             noSilencePackets = 0;
             std::cout << "Speech detected\n";
+            this->client->sendAudioPacket(audioPacket);
             break;
         default:
             std::cout << "Invalid audio packet type\n";
