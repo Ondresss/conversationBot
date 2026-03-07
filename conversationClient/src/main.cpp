@@ -10,7 +10,7 @@ int main() {
         bot.run();
     } catch (std::exception& e)
     {
-        std::cout << "Exception thrown" << std::endl;
+        std::cout << "Exception thrown: " << e.what() << std::endl;
         std::exit(EXIT_FAILURE);
     }
     std::exit(EXIT_SUCCESS);

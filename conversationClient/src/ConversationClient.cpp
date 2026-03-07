@@ -5,6 +5,8 @@
 
 #include <unistd.h>
 
+#include "../headers/AudioPacket.h"
+
 void ConversationClient::init() {
     this->fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) throw std::runtime_error("Error creating socket\n");
@@ -19,9 +21,9 @@ void ConversationClient::init() {
 
 void ConversationClient::connectToServer() {
     if (connect(this->fd, reinterpret_cast<struct sockaddr*>(&this->servAddr), sizeof(this->servAddr)) != 0) {
-        throw std::runtime_error("connection with the server failed...\n");
+        throw std::runtime_error("ConversationClient::connectToServer(): connection with the server failed...\n");
     }
-    std::cout << "Connected to the server" << std::endl;
+    std::cout << "ConversationClient::connectToServer(): Connected to the server" << std::endl;
 
 }
 
@@ -29,13 +31,35 @@ void ConversationClient::disconnectFromServer() const {
     close(this->fd);
 }
 
-void ConversationClient::sendBinary(const float* data, std::size_t noBytes) const {
-    const auto bytes = reinterpret_cast<const char*>(data);
-    std::size_t bytesLeft = noBytes;
-    while (bytesLeft > 0) {
-        const std::size_t bytesSent = write(this->fd, bytes, bytesLeft);
-        if (bytesSent == -1) throw std::runtime_error("Error writing to the socket\n");
-        bytesLeft -= bytesSent;
+void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
+    ClientHeader clientHeader{};
+    clientHeader.status = static_cast<uint32_t>(audioPacket.type);
+    clientHeader.packetLen = audioPacket.samples.size() * sizeof(float);
+
+    const char* headerPtr = reinterpret_cast<const char*>(&clientHeader);
+    ssize_t headerLeft = sizeof(clientHeader);
+
+    while (headerLeft > 0) {
+        ssize_t sent = write(this->fd, headerPtr, headerLeft);
+        if (sent == -1) throw std::runtime_error("ConversationClient::sendAudioPacket(const AudioPacket& audioPacket): Error writing to the socket\n");
+        headerLeft -= sent;
+        headerPtr += sent;
+    }
+    if (!audioPacket.samples.empty()) {
+        const char* dataPtr = reinterpret_cast<const char*>(audioPacket.samples.data());
+        ssize_t dataLeft = audioPacket.samples.size() * sizeof(float);
+
+        while (dataLeft > 0) {
+            ssize_t sent = write(this->fd, dataPtr, dataLeft);
+            if (sent <= 0) {
+                if (errno == EINTR) continue;
+                throw std::runtime_error("Socket error during audio data send");
+            }
+            dataLeft -= sent;
+            dataPtr += sent;
+        }
+    } else {
+        throw std::runtime_error("ConversationClient::sendAudioPacket(const AudioPacket& audioPacket): Trying to send empty audio packet\n");
     }
 }
 

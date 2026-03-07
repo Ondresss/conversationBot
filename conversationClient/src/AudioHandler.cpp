@@ -128,7 +128,7 @@ AudioType AudioHandler::applyFilters(const float* samples, unsigned int nBufferF
     return AudioType::NONE;
 }
 
-AudioHandler::AudioPacket AudioHandler::getNextAudioPacket() {
+AudioPacket AudioHandler::getNextAudioPacket() {
     std::lock_guard<std::mutex> lock(this->queueMtx);
     auto packet = this->audioQueue.front();
     this->audioQueue.pop();

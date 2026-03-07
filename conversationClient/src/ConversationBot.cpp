@@ -5,6 +5,8 @@
 
 void ConversationBot::run() {
     if (!this->audioHandler) throw std::runtime_error("ConversationBot::run(): audioHandler is null");
+    if (!this->client) throw std::runtime_error("ConversationBot::run(): client is null");
+    this->client->connectToServer();
     this->audioHandler->startRecording();
     int noSilencePackets = 0;
     while (noSilencePackets < 300) {
@@ -32,4 +34,5 @@ void ConversationBot::run() {
 
     }
     this->audioHandler->stopRecording();
+    this->client->disconnectFromServer();
 }

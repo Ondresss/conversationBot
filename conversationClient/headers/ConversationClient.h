@@ -10,7 +10,7 @@
 #include <stdexcept>
 #include <arpa/inet.h>
 #include <iostream>
-
+#include "AudioPacket.h"
 
 class ConversationClient {
 public:
@@ -33,7 +33,7 @@ public:
     };
     void connectToServer();
     void disconnectFromServer() const;
-    void sendBinary(const float* data,std::size_t noBytes) const;
+    void sendAudioPacket(const AudioPacket& audioPacket);
     std::string getTextFromServer();
 
 private:

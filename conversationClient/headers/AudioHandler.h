@@ -8,12 +8,9 @@
 #include <rtaudio/RtAudio.h>
 #include "IAudioFilter.h"
 #include "AudioType.h"
+#include "AudioPacket.h"
 class AudioHandler {
 public:
-    struct AudioPacket {
-        AudioType type;
-        std::vector<float> samples;
-    };
     AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames);
     static int recordCallback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
                     double streamTime, RtAudioStreamStatus status, void *userData );
