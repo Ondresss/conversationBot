@@ -31,8 +31,6 @@ add_executable(conversationBot src/main.cpp
 if(SHERPA_INCLUDE_DIR AND SHERPA_LIB)
     target_include_directories(conversationBot PRIVATE ${SHERPA_INCLUDE_DIR})
     target_link_libraries(conversationBot PRIVATE
-            ${SHERPA_LIB}
-            ${ONNXRUNTIME_LIB}
             ${RTAUDIO_LIB}
             asound
             pthread

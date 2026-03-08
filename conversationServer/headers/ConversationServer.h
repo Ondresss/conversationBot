@@ -9,10 +9,14 @@
 #include "ServerSocket.h"
 #include <thread>
 #include <iostream>
+
+#include "SpeechToTextConverter.h"
+
 class ConversationServer {
 public:
-    explicit ConversationServer(ServerInfo serverInfo) {
-        this->serverSocket = std::make_shared<ServerSocket>(serverInfo);
+    ConversationServer(ServerInfo serverInfo,const SpeechToTextConverter::ModelPath& modelPath) {
+        this->serverSocket = std::make_shared<ServerSocket>(std::move(serverInfo));
+        this->speechToTextConverter = std::make_unique<SpeechToTextConverter>(modelPath);
     };
     ~ConversationServer() {
         for (auto& th : this->clientThreads) {
@@ -26,6 +30,7 @@ public:
     std::vector<float> readAudioFromClient(const std::shared_ptr<ServerSocket::Client>& client);
     void writeResponse(const std::string& text);
 private:
-    std::shared_ptr<ServerSocket> serverSocket;
+    std::shared_ptr<ServerSocket> serverSocket = nullptr;
     std::vector<std::thread> clientThreads;
+    std::unique_ptr<SpeechToTextConverter> speechToTextConverter = nullptr;
 };

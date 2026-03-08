@@ -58,8 +58,6 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
             dataLeft -= sent;
             dataPtr += sent;
         }
-    } else {
-        throw std::runtime_error("ConversationClient::sendAudioPacket(const AudioPacket& audioPacket): Trying to send empty audio packet\n");
     }
 }
 
