@@ -20,31 +20,25 @@ void ConversationServer::run() {
         std::cerr << e.what() << std::endl;
         std::exit(EXIT_FAILURE);
     }
-}
+}void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> client) {
+    const SherpaOnnxOnlineStream* clientStream = this->speechToTextConverter->createStream();
 
-void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> client) {
-    std::cout << "New client handled: " << client->clientIP << std::endl;
-    std::vector<float> fullAudio;
     try {
         while (true) {
             auto audioBuffer = this->readAudioFromClient(client);
-            if (audioBuffer.empty()) {
-                if (fullAudio.size() < 16000) {
-                    continue;
+            if (!audioBuffer.empty()) {
+                std::string currentText = this->speechToTextConverter->processAudioChunk(clientStream, audioBuffer);
+                if (!currentText.empty()) {
+                    std::cout << "\rText: " << currentText << std::flush;
                 }
-                std::string speechText = this->speechToTextConverter->getSpeechToText(fullAudio);
-                std::cout << ">>> RECOGNIZED TEXT: [" << speechText << "]" << std::endl;
-                fullAudio.clear();
             } else {
-                fullAudio.insert(fullAudio.end(), audioBuffer.begin(), audioBuffer.end());
+                this->speechToTextConverter->destroyStream(clientStream);
+                clientStream = this->speechToTextConverter->createStream();
             }
         }
-    } catch (const std::exception& e) {
-        std::cout << "Client thread ended: " << e.what() << std::endl;
-        return;
-    }
+    } catch (...) { /* cleanup */ }
+    this->speechToTextConverter->destroyStream(clientStream);
 }
-
 std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr<ServerSocket::Client>& client) {
     std::vector<float> fullAudio;
     ClientHeader clientHeader{};

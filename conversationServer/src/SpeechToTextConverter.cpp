@@ -27,30 +27,3 @@ SpeechToTextConverter::SpeechToTextConverter(const ModelPath& modelPath) {
         throw std::runtime_error("SherpaOnnxCreateOnlineRecognizer failed. Check if paths exist!");
     }
 }
-std::string SpeechToTextConverter::getSpeechToText(std::vector<float> fullAudio) const {
-    if (fullAudio.empty()) return "";
-
-    const SherpaOnnxOnlineStream* stream = SherpaOnnxCreateOnlineStream(this->recognizer);
-
-    SherpaOnnxOnlineStreamAcceptWaveform(stream, 16000, fullAudio.data(), static_cast<int32_t>(fullAudio.size()));
-
-    SherpaOnnxOnlineStreamInputFinished(stream);
-
-    while (SherpaOnnxIsOnlineStreamReady(this->recognizer, stream)) {
-        SherpaOnnxDecodeOnlineStream(this->recognizer, stream);
-    }
-
-    const SherpaOnnxOnlineRecognizerResult* result = SherpaOnnxGetOnlineStreamResult(this->recognizer, stream);
-
-    std::string text = "";
-    if (result) {
-        if (result->text) {
-            text = result->text;
-        }
-        SherpaOnnxDestroyOnlineRecognizerResult(result);
-    }
-
-    SherpaOnnxDestroyOnlineStream(stream);
-
-    return text;
-}

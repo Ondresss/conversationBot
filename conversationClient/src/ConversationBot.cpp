@@ -9,12 +9,13 @@ void ConversationBot::run() {
     this->client->connectToServer();
     this->audioHandler->startRecording();
     int noSilencePackets = 0;
-    while (noSilencePackets < 300) {
+    while (noSilencePackets < 1000) {
         if (!this->audioHandler->hasPackets()) continue;
         auto audioPacket = this->audioHandler->getNextAudioPacket();
         switch (audioPacket.type) {
         case AudioType::SILENCE:
             noSilencePackets++;
+            this->client->sendAudioPacket(audioPacket);
             break;
         case AudioType::STARTOFSPEECH:
             noSilencePackets = 0;

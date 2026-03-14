@@ -7,10 +7,21 @@
 #include "../headers/SilenceFilter.h"
 
 AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames) {
+    this->audio = RtAudio(RtAudio::LINUX_PULSE);
     this->loadDeviceIds();
-    this->parameters = {
-        this->audio.getDefaultInputDevice(),noChannels,firstChanel
-    };
+
+    unsigned int defaultId = this->audio.getDefaultInputDevice();
+
+    if (defaultId == 0 && this->audio.getDeviceCount() == 0) {
+        throw std::runtime_error("Could not find sound devices");
+    }
+
+    std::cout << "DEBUG: Default Input Device ID: " << defaultId << std::endl;
+
+    this->parameters.deviceId = defaultId;
+    this->parameters.nChannels = noChannels;
+    this->parameters.firstChannel = firstChanel;
+
     this->bufferFrames = bufferFrames;
     this->sampleRate = sampleRate;
 
@@ -48,9 +59,6 @@ bool AudioHandler::hasPackets() {
     return !this->audioQueue.empty();
 }
 
-
-
-
 int AudioHandler::recordCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime,
     RtAudioStreamStatus status, void* userData) {
     auto handler = static_cast<AudioHandler*>(userData);
@@ -74,7 +82,7 @@ int AudioHandler::recordCallback(void* outputBuffer, void* inputBuffer, unsigned
     if (filterRes == AudioType::SILENCE) {
         AudioPacket audioPacket;
         audioPacket.type = AudioType::SILENCE;
-        audioPacket.samples = {};
+        audioPacket.samples = std::vector<float>(samples,samples + nBufferFrames);;
         handler->pushAudioPacket(audioPacket);
     }
     else {
@@ -98,10 +106,10 @@ void AudioHandler::stopRecording() {
 void AudioHandler::startRecording() {
     try{
        this->audio.startStream();
-    } catch( RtAudioError& e )
+    } catch( const std::exception& e )
     {
         std::cerr << "Error when starting audio stream." << std::endl;
-        std::cerr << e.getMessage() << std::endl;
+        std::cerr << e.what() << std::endl;
         std::exit(EXIT_FAILURE);
     }
 
@@ -111,10 +119,10 @@ void AudioHandler::init() {
     try {
         this->audio.openStream(nullptr,&this->parameters,
     RTAUDIO_FLOAT32,this->sampleRate,&this->bufferFrames,&AudioHandler::recordCallback,this);
-        this->filters.push_back(std::make_shared<SilenceFilter>(0.008));
-    } catch( RtAudioError& e ){
+        this->filters.push_back(std::make_shared<SilenceFilter>(0.07));
+    } catch( const std::exception& e ){
         std::cerr << "Error when initializing audio stream." << std::endl;
-        std::cerr << e.getMessage() << std::endl;
+        std::cerr << e.what() << std::endl;
         std::exit(EXIT_FAILURE);
     }
 }
@@ -136,13 +144,23 @@ AudioPacket AudioHandler::getNextAudioPacket() {
 }
 
 void AudioHandler::loadDeviceIds() {
-    const unsigned int count = audio.getDeviceCount();
-    for (unsigned int i = 0; i < count; i++) {
-        RtAudio::DeviceInfo info = audio.getDeviceInfo(i);
-        if (info.probed) {
-            this->devices.emplace_back(i,info);
-            std::cout << "Device " << i << ": " << info.name << std::endl;
+    std::vector<unsigned int> ids = audio.getDeviceIds();
+
+    if (ids.empty()) {
+        std::cerr << "Could not find any sound devices" << std::endl;
+        return;
+    }
+
+    for (unsigned int id : ids) {
+        try {
+            RtAudio::DeviceInfo info = audio.getDeviceInfo(id);
+            if (info.inputChannels > 0) {
+                std::cout << "Found microphone - ID: " << id << " Name: " << info.name << std::endl;
+                this->devices.push_back({id,info});
+
+            }
+        } catch (const std::exception& e) {
+            continue;
         }
     }
 }
-
