@@ -82,7 +82,7 @@ int AudioHandler::recordCallback(void* outputBuffer, void* inputBuffer, unsigned
     if (filterRes == AudioType::SILENCE) {
         AudioPacket audioPacket;
         audioPacket.type = AudioType::SILENCE;
-        audioPacket.samples = std::vector<float>(samples,samples + nBufferFrames);;
+        audioPacket.samples = {};
         handler->pushAudioPacket(audioPacket);
     }
     else {

@@ -15,7 +15,6 @@ void ConversationBot::run() {
         switch (audioPacket.type) {
         case AudioType::SILENCE:
             noSilencePackets++;
-            this->client->sendAudioPacket(audioPacket);
             break;
         case AudioType::STARTOFSPEECH:
             noSilencePackets = 0;

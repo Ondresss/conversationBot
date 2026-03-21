@@ -14,7 +14,9 @@ int main(int argc,const char** argv) {
             "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/tokens.txt",
             "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/joiner-epoch-99-avg-1-chunk-16-left-128.onnx"
         };
-        ConversationServer server({9999,"0.0.0.0"},modelPath);
+        LLMGateway::LLMParams llmParams = LLMGateway::parseArgs(argc,argv);
+        auto llmGateway = std::make_shared<LLMGateway>(llmParams);
+        ConversationServer server({9999,"0.0.0.0"},modelPath,llmGateway);
         server.run();
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;

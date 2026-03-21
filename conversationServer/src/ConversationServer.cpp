@@ -7,6 +7,8 @@
 #include "../headers/ClientHeader.h"
 
 #include <unistd.h>
+#include <rtaudio/RtAudio.h>
+
 void ConversationServer::run() {
     try {
         if (!this->serverSocket) throw std::runtime_error("ConversationServer::run(): serverSocket is null");
@@ -22,18 +24,22 @@ void ConversationServer::run() {
     }
 }void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> client) {
     const SherpaOnnxOnlineStream* clientStream = this->speechToTextConverter->createStream();
-
+    std::vector<float> audioBuffer;
     try {
         while (true) {
-            auto audioBuffer = this->readAudioFromClient(client);
-            if (!audioBuffer.empty()) {
+            auto currentAudio = this->readAudioFromClient(client);
+            if (currentAudio.empty()) {
                 std::string currentText = this->speechToTextConverter->processAudioChunk(clientStream, audioBuffer);
                 if (!currentText.empty()) {
-                    std::cout << "\rText: " << currentText << std::flush;
+                    std::cout << "\rText: " << currentText << std::flush << "\n";
+                    std::string response = this->llmGateway->askLLM(currentText);
+                    std::cout << "LLM RESPONSE: " << response << std::endl;
                 }
+                audioBuffer.clear();
             } else {
                 this->speechToTextConverter->destroyStream(clientStream);
                 clientStream = this->speechToTextConverter->createStream();
+                audioBuffer.insert(audioBuffer.end(), currentAudio.begin(), currentAudio.end());
             }
         }
     } catch (...) { /* cleanup */ }
