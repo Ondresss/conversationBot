@@ -22,23 +22,25 @@ void ConversationServer::run() {
         std::cerr << e.what() << std::endl;
         std::exit(EXIT_FAILURE);
     }
-}void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> client) {
-    const SherpaOnnxOnlineStream* clientStream = this->speechToTextConverter->createStream();
+}
+
+void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> client) {
+    const SherpaOnnxOnlineStream* clientStream = nullptr;
+    if (this->speechToTextConverter->isOnline()) clientStream = this->speechToTextConverter->createStream();
+
     std::vector<float> audioBuffer;
     try {
         while (true) {
             auto currentAudio = this->readAudioFromClient(client);
             if (currentAudio.empty()) {
                 std::string currentText = this->speechToTextConverter->processAudioChunk(clientStream, audioBuffer);
-                if (!currentText.empty()) {
+                if (!currentText.empty() && currentText.length() >= 20) {
                     std::cout << "\rText: " << currentText << std::flush << "\n";
                     std::string response = this->llmGateway->askLLM(currentText);
                     std::cout << "LLM RESPONSE: " << response << std::endl;
                 }
                 audioBuffer.clear();
             } else {
-                this->speechToTextConverter->destroyStream(clientStream);
-                clientStream = this->speechToTextConverter->createStream();
                 audioBuffer.insert(audioBuffer.end(), currentAudio.begin(), currentAudio.end());
             }
         }
@@ -74,6 +76,53 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
     fullAudio.insert(fullAudio.end(), packetData.begin(), packetData.end());
     return fullAudio;
 }
+
+std::string SpeechToTextConverter::processAudioChunk(const SherpaOnnxOnlineStream* onlineStream, const std::vector<float>& chunk) const {
+    if (chunk.empty()) return "";
+
+    if (this->offline_recognizer) {
+        const SherpaOnnxOfflineStream* offlineStream = SherpaOnnxCreateOfflineStream(this->offline_recognizer);
+
+        SherpaOnnxAcceptWaveformOffline(offlineStream, 16000, chunk.data(), static_cast<int32_t>(chunk.size()));
+
+        SherpaOnnxDecodeOfflineStream(this->offline_recognizer, offlineStream);
+
+        const SherpaOnnxOfflineRecognizerResult* result = SherpaOnnxGetOfflineStreamResult(offlineStream);
+
+        std::string text = "";
+        if (result && result->text) {
+            text = result->text;
+        }
+
+        SherpaOnnxDestroyOfflineRecognizerResult(result);
+        SherpaOnnxDestroyOfflineStream(offlineStream);
+
+        return text;
+    }
+
+    if (this->recognizer && onlineStream) {
+        SherpaOnnxOnlineStreamAcceptWaveform(onlineStream, 16000, chunk.data(), static_cast<int32_t>(chunk.size()));
+
+        while (SherpaOnnxIsOnlineStreamReady(this->recognizer, onlineStream)) {
+            SherpaOnnxDecodeOnlineStream(this->recognizer, onlineStream);
+        }
+
+        const SherpaOnnxOnlineRecognizerResult* result = SherpaOnnxGetOnlineStreamResult(this->recognizer, onlineStream);
+
+        std::string text = "";
+        if (result) {
+            if (result->text) {
+                text = result->text;
+            }
+            SherpaOnnxDestroyOnlineRecognizerResult(result);
+        }
+        return text;
+    }
+
+    return "";
+}
+
+
 
 void ConversationServer::writeResponse(const std::string& text) {
 }

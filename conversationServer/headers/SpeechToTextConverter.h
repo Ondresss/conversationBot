@@ -7,6 +7,8 @@
 #include <cstring>
 #include <stdexcept>
 #include <vector>
+#include <fstream>
+#include <iostream>
 class SpeechToTextConverter {
 public:
     struct ModelPath {
@@ -14,45 +16,32 @@ public:
         std::string decoderPath;
         std::string tokenPath;
         std::string joinerPath;
+
+        std::string modelName;
     };
     explicit SpeechToTextConverter(const ModelPath& modelPath);
     ~SpeechToTextConverter() {
-        SherpaOnnxDestroyOnlineRecognizer(this->recognizer);
+        if (this->recognizer) SherpaOnnxDestroyOnlineRecognizer(this->recognizer);
+        if (this->offline_recognizer) SherpaOnnxDestroyOfflineRecognizer(this->offline_recognizer);
     }
     const SherpaOnnxOnlineStream* createStream() const {
+        if (!this->recognizer) return nullptr;
         return SherpaOnnxCreateOnlineStream(this->recognizer);
     }
-    std::string processAudioChunk(const SherpaOnnxOnlineStream* stream, const std::vector<float>& chunk) const {
-        if (chunk.empty()) return "";
-
-        // 1. Vložit audio data do streamu
-        SherpaOnnxOnlineStreamAcceptWaveform(stream, 16000, chunk.data(), static_cast<int32_t>(chunk.size()));
-
-        // 2. Dekódovat připravená data
-        while (SherpaOnnxIsOnlineStreamReady(this->recognizer, stream)) {
-            SherpaOnnxDecodeOnlineStream(this->recognizer, stream);
-        }
-
-        // 3. Získat výsledek
-        const SherpaOnnxOnlineRecognizerResult* result = SherpaOnnxGetOnlineStreamResult(this->recognizer, stream);
-
-        std::string text = "";
-        if (result) {
-            if (result->text) {
-                text = result->text;
-            }
-            SherpaOnnxDestroyOnlineRecognizerResult(result);
-        }
-
-        return text;
-    }
+    std::string processAudioChunk(const SherpaOnnxOnlineStream* stream, const std::vector<float>& chunk) const;
 
     void destroyStream(const SherpaOnnxOnlineStream* stream) const {
-        SherpaOnnxDestroyOnlineStream(stream);
+        if (stream) SherpaOnnxDestroyOnlineStream(stream);
     }
 
+    void destroyOfflineStream(const SherpaOnnxOfflineStream* stream) const {
+        if (stream) SherpaOnnxDestroyOfflineStream(stream);
+    }
     const SherpaOnnxOnlineRecognizer* getRecognizer() const { return recognizer; }
+
+    bool isOnline() const { return this->recognizer; }
 private:
     const SherpaOnnxOnlineRecognizer* recognizer = nullptr;
+    const SherpaOnnxOfflineRecognizer* offline_recognizer = nullptr;
 
 };

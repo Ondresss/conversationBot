@@ -7,7 +7,6 @@
 #include "../headers/SilenceFilter.h"
 
 AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames) {
-    this->audio = RtAudio(RtAudio::LINUX_PULSE);
     this->loadDeviceIds();
 
     unsigned int defaultId = this->audio.getDefaultInputDevice();

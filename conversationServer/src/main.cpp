@@ -12,11 +12,24 @@ int main(int argc,const char** argv) {
             "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/encoder-epoch-99-avg-1-chunk-16-left-128.onnx",
             "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/decoder-epoch-99-avg-1-chunk-16-left-128.onnx",
             "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/tokens.txt",
-            "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/joiner-epoch-99-avg-1-chunk-16-left-128.onnx"
+            "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/joiner-epoch-99-avg-1-chunk-16-left-128.onnx",
+            "zipformer"
         };
+
+        SpeechToTextConverter::ModelPath senseVoiceModelPath = {
+            "/home/andrew/conversationBot/conversationServer/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/model.int8.onnx",
+            "",
+            "/home/andrew/conversationBot/conversationServer/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/tokens.txt",
+            "",
+            "senseVoice"
+        };
+
         LLMGateway::LLMParams llmParams = LLMGateway::parseArgs(argc,argv);
         auto llmGateway = std::make_shared<LLMGateway>(llmParams);
-        ConversationServer server({9999,"0.0.0.0"},modelPath,llmGateway);
+        TextToSpeechConverter::ConfigParams configParams {
+            "/home/andrew/conversationBot/conversationServer/ttsModels/"
+        };
+        ConversationServer server({9999,"0.0.0.0"},senseVoiceModelPath,llmGateway,configParams);
         server.run();
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;

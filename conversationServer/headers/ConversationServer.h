@@ -12,12 +12,17 @@
 
 #include "SpeechToTextConverter.h"
 #include "LLMGateway.h"
+#include "TextToSpeechConverter.h"
 class ConversationServer {
 public:
-    ConversationServer(ServerInfo serverInfo,const SpeechToTextConverter::ModelPath& modelPath,std::shared_ptr<LLMGateway> llmGateway_) {
+    ConversationServer(ServerInfo serverInfo,
+        const SpeechToTextConverter::ModelPath& modelPath,
+        std::shared_ptr<LLMGateway> llmGateway_,
+        const TextToSpeechConverter::ConfigParams& ttsParams_) {
         this->serverSocket = std::make_shared<ServerSocket>(std::move(serverInfo));
         this->speechToTextConverter = std::make_unique<SpeechToTextConverter>(modelPath);
         this->llmGateway = std::move(llmGateway_);
+        this->textToSpeechConverter = std::make_unique<TextToSpeechConverter>(ttsParams_);
     };
     ~ConversationServer() {
         for (auto& th : this->clientThreads) {
@@ -35,4 +40,5 @@ private:
     std::shared_ptr<LLMGateway> llmGateway = nullptr;
     std::vector<std::thread> clientThreads;
     std::unique_ptr<SpeechToTextConverter> speechToTextConverter = nullptr;
+    std::unique_ptr<TextToSpeechConverter> textToSpeechConverter = nullptr;
 };
