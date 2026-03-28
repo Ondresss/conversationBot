@@ -94,6 +94,30 @@ int AudioHandler::recordCallback(void* outputBuffer, void* inputBuffer, unsigned
     return 0;
 }
 
+int AudioHandler::playbackCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime,
+    RtAudioStreamStatus status, void* userData) {
+
+    auto* ctx = static_cast<PlaybackContext*>(userData);
+    int16_t* out = static_cast<int16_t*>(outputBuffer);
+
+    std::lock_guard<std::mutex> lock(ctx->mtx);
+
+    for (unsigned int i = 0; i < nBufferFrames; i++) {
+        if (ctx->currentPos >= ctx->currentVector.size()) {
+            if (!ctx->queue.empty()) {
+                ctx->currentVector = std::move(ctx->queue.front());
+                ctx->queue.pop();
+                ctx->currentPos = 0;
+            } else {
+                out[i] = 0;
+                continue;
+            }
+        }
+        out[i] = ctx->currentVector.at(ctx->currentPos++);
+    }
+    return 0;
+
+}
 
 void AudioHandler::stopRecording() {
     if (this->audio.isStreamRunning()) {
@@ -162,4 +186,28 @@ void AudioHandler::loadDeviceIds() {
             continue;
         }
     }
+}
+
+void AudioHandler::startPlayback() {
+    RtAudio::StreamParameters oParams;
+    oParams.deviceId = this->playbackAudio.getDefaultOutputDevice();
+    oParams.nChannels = 1;
+    oParams.firstChannel = 0;
+
+    unsigned int sampleRate_ = 22050;
+    unsigned int bufferFrames_ = 512;
+    this->playbackContext.currentPos = 0;
+    try {
+        if (!this->playbackAudio.isStreamOpen()) {
+            this->playbackAudio.openStream(&oParams, nullptr, RTAUDIO_SINT16,
+                                           sampleRate_, &bufferFrames_,
+                                           &playbackCallback, &this->playbackContext);
+        }
+
+        this->playbackAudio.startStream();
+        std::cout << "INFO: Playback started at 22050Hz" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "void AudioHandler::startPlayback() : " << e.what() << std::endl;
+    }
+
 }

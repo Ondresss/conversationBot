@@ -11,12 +11,23 @@
 #include "AudioPacket.h"
 class AudioHandler {
 public:
+    struct PlaybackContext {
+        std::mutex mtx;
+        std::queue<std::vector<std::int16_t>> queue;
+        std::vector<std::int16_t> currentVector;
+        size_t currentPos = 0;
+    };
     AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames);
+
     static int recordCallback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
                     double streamTime, RtAudioStreamStatus status, void *userData );
 
+    static int playbackCallback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
+                     double streamTime, RtAudioStreamStatus status, void *userData);
+
     void startRecording();
     void stopRecording();
+    void startPlayback();
 
     AudioPacket getNextAudioPacket();
     void pushAudioPacket(AudioPacket audioPacket) { this->audioQueue.push(std::move(audioPacket)); }
@@ -28,6 +39,10 @@ public:
     [[nodiscard]] AudioType getLastAudioType() const {return this->lastAudioType;}
     bool hasPackets();
 
+    void setPlaybackContextData(const std::vector<std::int16_t>& soundBytes) {
+        this->playbackContext.queue.push(soundBytes);
+    }
+
 private:
     void init();
     AudioType applyFilters(const float* samples,unsigned int nBufferFrames);
@@ -35,15 +50,18 @@ private:
 
     RtAudio::StreamParameters parameters;
     RtAudio audio;
+    RtAudio playbackAudio;
     unsigned int sampleRate;
     unsigned int bufferFrames;
     std::vector<std::tuple<unsigned int,RtAudio::DeviceInfo>> devices;
     std::vector<std::shared_ptr<IAudioFilter>> filters;
     std::mutex queueMtx;
     std::queue<AudioPacket> audioQueue;
-
+    std::queue<std::vector<std::uint8_t>> responseQueue;
     int silenceCounter = 0;
     int speechCounter = 0;
     AudioType lastAudioType = AudioType::NONE;
+
+    PlaybackContext playbackContext{};
 };
 

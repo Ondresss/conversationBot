@@ -41,3 +41,48 @@ SpeechToTextConverter::SpeechToTextConverter(const ModelPath& modelPath) {
         }
     }
 }
+
+std::string SpeechToTextConverter::processAudioChunk(const SherpaOnnxOnlineStream* onlineStream, const std::vector<float>& chunk) const {
+    if (chunk.empty()) return "";
+
+    if (this->offline_recognizer) {
+        const SherpaOnnxOfflineStream* offlineStream = SherpaOnnxCreateOfflineStream(this->offline_recognizer);
+
+        SherpaOnnxAcceptWaveformOffline(offlineStream, 16000, chunk.data(), static_cast<int32_t>(chunk.size()));
+
+        SherpaOnnxDecodeOfflineStream(this->offline_recognizer, offlineStream);
+
+        const SherpaOnnxOfflineRecognizerResult* result = SherpaOnnxGetOfflineStreamResult(offlineStream);
+
+        std::string text = "";
+        if (result && result->text) {
+            text = result->text;
+        }
+
+        SherpaOnnxDestroyOfflineRecognizerResult(result);
+        SherpaOnnxDestroyOfflineStream(offlineStream);
+
+        return text;
+    }
+
+    if (this->recognizer && onlineStream) {
+        SherpaOnnxOnlineStreamAcceptWaveform(onlineStream, 16000, chunk.data(), static_cast<int32_t>(chunk.size()));
+
+        while (SherpaOnnxIsOnlineStreamReady(this->recognizer, onlineStream)) {
+            SherpaOnnxDecodeOnlineStream(this->recognizer, onlineStream);
+        }
+
+        const SherpaOnnxOnlineRecognizerResult* result = SherpaOnnxGetOnlineStreamResult(this->recognizer, onlineStream);
+
+        std::string text = "";
+        if (result) {
+            if (result->text) {
+                text = result->text;
+            }
+            SherpaOnnxDestroyOnlineRecognizerResult(result);
+        }
+        return text;
+    }
+
+    return "";
+}

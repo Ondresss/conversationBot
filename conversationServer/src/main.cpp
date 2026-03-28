@@ -27,7 +27,7 @@ int main(int argc,const char** argv) {
         LLMGateway::LLMParams llmParams = LLMGateway::parseArgs(argc,argv);
         auto llmGateway = std::make_shared<LLMGateway>(llmParams);
         TextToSpeechConverter::ConfigParams configParams {
-            "/home/andrew/conversationBot/conversationServer/ttsModels/"
+            "/home/andrew/conversationBot/conversationServer/ttsModels/en_US-lessac-medium.onnx"
         };
         ConversationServer server({9999,"0.0.0.0"},senseVoiceModelPath,llmGateway,configParams);
         server.run();

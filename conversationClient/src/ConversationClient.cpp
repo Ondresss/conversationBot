@@ -61,31 +61,29 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
     }
 }
 
-std::string ConversationClient::getTextFromServer() {
+ const std::vector<std::int16_t>& ConversationClient::getResponseFromServer() {
+    std::cout << "Reading response from the server....\n";
     ServerHeader serverHeader{};
     auto serverHeaderPtr = reinterpret_cast<char*>(&serverHeader);
     ssize_t headerBytesLeft = sizeof(ServerHeader);
     while (headerBytesLeft > 0) {
         const ssize_t headerBytesRead = read(this->fd, serverHeaderPtr, headerBytesLeft);
-        if (headerBytesRead == -1) throw std::runtime_error("Error reading from the socket\n");
+        if (headerBytesRead == -1) throw std::runtime_error("ConversationClient::getResponseFromServer(): Error reading from the socket\n");
         headerBytesLeft -= headerBytesRead;
         serverHeaderPtr += headerBytesRead;
     }
+    size_t numSamples = serverHeader.totalLen / sizeof(std::int16_t);
+
+    this->responseBuffer.resize(numSamples);
+
+    char* dataPtr = reinterpret_cast<char*>(this->responseBuffer.data());
     ssize_t bytesLeft = serverHeader.totalLen;
-    auto BUFFER = new char[bytesLeft+1];
-    std::memset(BUFFER, 0, bytesLeft+1);
-    auto currentPtr = BUFFER;
     while (bytesLeft > 0) {
-        const ssize_t bytesRead = read(this->fd, currentPtr, bytesLeft);
-        if (bytesRead == -1) throw std::runtime_error("Error reading from the socket\n");
-        if (bytesRead == 0) {
-            std::cout << "Server sent 0 - Disconnected\n";
-            break;
-        }
+        const ssize_t bytesRead = read(this->fd, dataPtr, bytesLeft);
+        if (bytesRead == 0) break;
         bytesLeft -= bytesRead;
-        currentPtr += bytesRead;
+        dataPtr += bytesRead;
     }
-    this->recievedMessage = std::string(BUFFER);
-    delete[] BUFFER;
-    return this->recievedMessage;
+    std::cout << "INFO: read response from the server\n";
+    return this->responseBuffer;
 }

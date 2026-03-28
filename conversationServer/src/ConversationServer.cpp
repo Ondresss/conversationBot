@@ -38,6 +38,21 @@ void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> clie
                     std::cout << "\rText: " << currentText << std::flush << "\n";
                     std::string response = this->llmGateway->askLLM(currentText);
                     std::cout << "LLM RESPONSE: " << response << std::endl;
+                    std::cout << "DEBUG: Starting Piper synthesis..." << std::endl;
+                    try {
+                        this->textToSpeechConverter->convertTextToSpeech(response);
+                    } catch (const std::exception& e) {
+                        std::cerr << "ERR: Exception during TTS\n";
+                        std::cerr << e.what() << std::endl;
+                        close(client->clientFd);
+                        return;
+                    }
+                    std::vector<int16_t> audioOut = this->textToSpeechConverter->getOutput();
+                    std::cout << "DEBUG: Piper produced " << audioOut.size() << " samples ("
+                              << audioOut.size() * 2 << " bytes)." << std::endl;
+
+                    this->writeResponse(client, audioOut);
+                    std::cout << "DEBUG: Response written to socket." << std::endl;
                 }
                 audioBuffer.clear();
             } else {
@@ -77,52 +92,28 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
     return fullAudio;
 }
 
-std::string SpeechToTextConverter::processAudioChunk(const SherpaOnnxOnlineStream* onlineStream, const std::vector<float>& chunk) const {
-    if (chunk.empty()) return "";
-
-    if (this->offline_recognizer) {
-        const SherpaOnnxOfflineStream* offlineStream = SherpaOnnxCreateOfflineStream(this->offline_recognizer);
-
-        SherpaOnnxAcceptWaveformOffline(offlineStream, 16000, chunk.data(), static_cast<int32_t>(chunk.size()));
-
-        SherpaOnnxDecodeOfflineStream(this->offline_recognizer, offlineStream);
-
-        const SherpaOnnxOfflineRecognizerResult* result = SherpaOnnxGetOfflineStreamResult(offlineStream);
-
-        std::string text = "";
-        if (result && result->text) {
-            text = result->text;
-        }
-
-        SherpaOnnxDestroyOfflineRecognizerResult(result);
-        SherpaOnnxDestroyOfflineStream(offlineStream);
-
-        return text;
+void ConversationServer::writeResponse(const std::shared_ptr<ServerSocket::Client>& client,const std::vector<std::int16_t>& soundBytes) {
+    if (soundBytes.empty()) throw std::runtime_error("ConversationServer::writeResponse(): SoundBytes is empty");
+    ServerHeader header{};
+    header.status = 1;
+    header.totalLen = soundBytes.size() * sizeof(std::int16_t);
+    char* headerPtr = reinterpret_cast<char*>(&header);
+    ssize_t headerBytesLeft = sizeof(header);
+    while (headerBytesLeft > 0) {
+        ssize_t n = write(client->clientFd, headerPtr, headerBytesLeft);
+        if (n == 0) throw std::runtime_error("ConversationServer::writeResponse(): Client disconnected while sending header");
+        if (n == -1) throw std::runtime_error("ConversationServer::writeResponse(): Error while reading header from client " + std::string(strerror(errno)) );
+        headerBytesLeft -= n;
+        headerPtr += n;
     }
 
-    if (this->recognizer && onlineStream) {
-        SherpaOnnxOnlineStreamAcceptWaveform(onlineStream, 16000, chunk.data(), static_cast<int32_t>(chunk.size()));
-
-        while (SherpaOnnxIsOnlineStreamReady(this->recognizer, onlineStream)) {
-            SherpaOnnxDecodeOnlineStream(this->recognizer, onlineStream);
-        }
-
-        const SherpaOnnxOnlineRecognizerResult* result = SherpaOnnxGetOnlineStreamResult(this->recognizer, onlineStream);
-
-        std::string text = "";
-        if (result) {
-            if (result->text) {
-                text = result->text;
-            }
-            SherpaOnnxDestroyOnlineRecognizerResult(result);
-        }
-        return text;
+    auto dataPtr = reinterpret_cast<const char*>(soundBytes.data());
+    ssize_t dataBytesLeft = header.totalLen;
+    while (dataBytesLeft > 0) {
+        ssize_t n = write(client->clientFd, dataPtr, dataBytesLeft);
+        if (n <= 0) std::cout << "Client disconnected or ended\n";
+        dataBytesLeft -= n;
+        dataPtr += n;
     }
-
-    return "";
-}
-
-
-
-void ConversationServer::writeResponse(const std::string& text) {
+    std::cout << "Wrote response to the client" << std::endl;
 }

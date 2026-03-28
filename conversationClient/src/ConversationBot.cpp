@@ -8,6 +8,7 @@ void ConversationBot::run() {
     if (!this->client) throw std::runtime_error("ConversationBot::run(): client is null");
     this->client->connectToServer();
     this->audioHandler->startRecording();
+    this->audioHandler->startPlayback();
     int noSilencePackets = 0;
     while (noSilencePackets < 1000) {
         if (!this->audioHandler->hasPackets()) continue;
@@ -21,11 +22,14 @@ void ConversationBot::run() {
             std::cout << "Start of speech detected\n";
             this->client->sendAudioPacket(audioPacket);
             break;
-        case AudioType::ENDOFSPEECH:
+        case AudioType::ENDOFSPEECH: {
             noSilencePackets = 0;
             std::cout << "End of speech detected\n";
             this->client->sendAudioPacket(audioPacket);
+            auto response  = this->client->getResponseFromServer();
+            this->audioHandler->setPlaybackContextData(response);
             break;
+        }
         case AudioType::SPEECH:
             noSilencePackets = 0;
             std::cout << "Speech detected\n";

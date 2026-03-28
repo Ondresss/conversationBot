@@ -34,12 +34,12 @@ public:
     void connectToServer();
     void disconnectFromServer() const;
     void sendAudioPacket(const AudioPacket& audioPacket);
-    std::string getTextFromServer();
+    const std::vector<std::int16_t>& getResponseFromServer();
 
 private:
     ServerInfo serverInfo;
     int fd = -1;
-    std::string recievedMessage;
+    std::vector<std::int16_t> responseBuffer;
     struct sockaddr_in servAddr{};
 
     void init();
