@@ -16,6 +16,7 @@ public:
         std::queue<std::vector<std::int16_t>> queue;
         std::vector<std::int16_t> currentVector;
         size_t currentPos = 0;
+        bool isTalking = false;
     };
     AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames);
 
@@ -29,6 +30,7 @@ public:
     void stopRecording();
     void startPlayback();
 
+    bool isSpeaking();
     AudioPacket getNextAudioPacket();
     void pushAudioPacket(AudioPacket audioPacket) { this->audioQueue.push(std::move(audioPacket)); }
     std::mutex& getMutex() {return this->queueMtx;}
@@ -41,7 +43,9 @@ public:
 
     void setPlaybackContextData(const std::vector<std::int16_t>& soundBytes) {
         this->playbackContext.queue.push(soundBytes);
+
     }
+    PlaybackContext& getPlaybackContextData() {return this->playbackContext;}
 
 private:
     void init();
@@ -61,7 +65,6 @@ private:
     int silenceCounter = 0;
     int speechCounter = 0;
     AudioType lastAudioType = AudioType::NONE;
-
     PlaybackContext playbackContext{};
 };
 

@@ -61,7 +61,7 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
     }
 }
 
- const std::vector<std::int16_t>& ConversationClient::getResponseFromServer() {
+ std::tuple<const std::vector<std::int16_t>&,uint32_t> ConversationClient::getResponseFromServer() {
     std::cout << "Reading response from the server....\n";
     ServerHeader serverHeader{};
     auto serverHeaderPtr = reinterpret_cast<char*>(&serverHeader);
@@ -85,5 +85,5 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
         dataPtr += bytesRead;
     }
     std::cout << "INFO: read response from the server\n";
-    return this->responseBuffer;
+    return {this->responseBuffer,serverHeader.status};
 }

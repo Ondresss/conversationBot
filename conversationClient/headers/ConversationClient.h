@@ -34,7 +34,7 @@ public:
     void connectToServer();
     void disconnectFromServer() const;
     void sendAudioPacket(const AudioPacket& audioPacket);
-    const std::vector<std::int16_t>& getResponseFromServer();
+    std::tuple<const std::vector<std::int16_t>&,uint32_t> getResponseFromServer();
 
 private:
     ServerInfo serverInfo;

@@ -1,4 +1,7 @@
 #include "../headers/SpeechToTextConverter.h"
+
+#include <spdlog/spdlog.h>
+
 SpeechToTextConverter::SpeechToTextConverter(const ModelPath& modelPath) {
     if (modelPath.modelName == "senseVoice") {
         SherpaOnnxOfflineRecognizerConfig config = {};
@@ -6,7 +9,7 @@ SpeechToTextConverter::SpeechToTextConverter(const ModelPath& modelPath) {
         if (!f.good()) {
             throw std::runtime_error("SpeechToTextConverter::SpeechToTextConverter(const ModelPath& modelPath): Model not found!");
         } else {
-            std::cout << "Model found..." << std::endl;
+            spdlog::info("Model found");
         }
         config.model_config.sense_voice.model = modelPath.encoderPath.c_str();
         config.model_config.tokens = modelPath.tokenPath.c_str();

@@ -6,18 +6,14 @@
 
 
 bool SilenceFilter::filter(const float* sample, unsigned int nBufferFrames) {
-    float sampleMin = std::numeric_limits<float>::max();
-    float sampleMax = std::numeric_limits<float>::min();
-    for (int i = 0; i < nBufferFrames; ++i) {
-        if (sample[i] < sampleMin){
-            sampleMin = sample[i];
-        }
-        if (sample[i] > sampleMax) {
-            sampleMax = sample[i];
-        }
+    double sum = 0.0;
+    for (unsigned int i = 0; i < nBufferFrames; ++i) {
+        sum += sample[i] * sample[i];
     }
-    float diff = sampleMax - sampleMin;
-    if (diff < threshold){
+
+    double rms = std::sqrt(sum / nBufferFrames);
+
+    if (rms < threshold) {
         return true;
     }
     return false;

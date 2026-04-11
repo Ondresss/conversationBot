@@ -13,9 +13,9 @@ void ConversationServer::run() {
     try {
         if (!this->serverSocket) throw std::runtime_error("ConversationServer::run(): serverSocket is null");
         while (true) {
-            std::cout << "Waiting for new client...." << std::endl;
+            spdlog::info("Waiting for new client....");
             auto client = this->serverSocket->waitForConnection();
-            std::cout << "New client joined" << std::endl;
+            spdlog::info("New client joined with IP {}",client->clientIP);
             this->clientThreads.emplace_back(&ConversationServer::handleClient, this,client);
         }
     } catch (std::exception& e){
@@ -25,6 +25,7 @@ void ConversationServer::run() {
 }
 
 void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> client) {
+    spdlog::info("Handling the client......");
     const SherpaOnnxOnlineStream* clientStream = nullptr;
     if (this->speechToTextConverter->isOnline()) clientStream = this->speechToTextConverter->createStream();
 
@@ -33,34 +34,48 @@ void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> clie
         while (true) {
             auto currentAudio = this->readAudioFromClient(client);
             if (currentAudio.empty()) {
+                spdlog::info("Read full sentence");
+                if (audioBuffer.size() <= 8000) {
+                    spdlog::error("Client sentence was too short!");
+                    this->writeResponse(client,{},ServerStatus::TOOSHORT);
+                    audioBuffer.clear();
+                    continue;
+                }
                 std::string currentText = this->speechToTextConverter->processAudioChunk(clientStream, audioBuffer);
+                spdlog::info("Audio processed");
                 if (!currentText.empty() && currentText.length() >= 20) {
-                    std::cout << "\rText: " << currentText << std::flush << "\n";
+                    spdlog::info("Input Text: {}", currentText);
                     std::string response = this->llmGateway->askLLM(currentText);
-                    std::cout << "LLM RESPONSE: " << response << std::endl;
-                    std::cout << "DEBUG: Starting Piper synthesis..." << std::endl;
+                    spdlog::info("LLM RESPONSE: {}", response);
+                    spdlog::debug("Starting Piper synthesis...");
                     try {
                         this->textToSpeechConverter->convertTextToSpeech(response);
                     } catch (const std::exception& e) {
-                        std::cerr << "ERR: Exception during TTS\n";
-                        std::cerr << e.what() << std::endl;
+                        spdlog::error("ERR: Exception during TTS");
+                        spdlog::error("{}",e.what());
                         close(client->clientFd);
+                        spdlog::info("Closed connection with client");
                         return;
                     }
                     std::vector<int16_t> audioOut = this->textToSpeechConverter->getOutput();
-                    std::cout << "DEBUG: Piper produced " << audioOut.size() << " samples ("
-                              << audioOut.size() * 2 << " bytes)." << std::endl;
+                    spdlog::debug("Piper produced {} samples ({} bytes).", audioOut.size(), audioOut.size() * sizeof(int16_t));
 
-                    this->writeResponse(client, audioOut);
-                    std::cout << "DEBUG: Response written to socket." << std::endl;
+                    this->writeResponse(client, audioOut,ServerStatus::OK);
+                    spdlog::debug("Response written to socket.");
+                } else {
+                    spdlog::error("Empty text response!");
+                    this->writeResponse(client,{},ServerStatus::EMPTY_RESPONSE);
                 }
                 audioBuffer.clear();
             } else {
                 audioBuffer.insert(audioBuffer.end(), currentAudio.begin(), currentAudio.end());
             }
         }
-    } catch (...) { /* cleanup */ }
+    } catch (const std::exception& e) {
+        spdlog::error("void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> client): {}",e.what());
+    }
     this->speechToTextConverter->destroyStream(clientStream);
+    spdlog::debug("Stream destroyed");
 }
 std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr<ServerSocket::Client>& client) {
     std::vector<float> fullAudio;
@@ -76,7 +91,6 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
     }
     size_t numSamples = clientHeader.packetLen / sizeof(float);
     std::vector<float> packetData(numSamples);
-
     char* dataPtr = reinterpret_cast<char*>(packetData.data());
     ssize_t dataBytesLeft = clientHeader.packetLen;
     if (clientHeader.status == 3) {
@@ -92,10 +106,10 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
     return fullAudio;
 }
 
-void ConversationServer::writeResponse(const std::shared_ptr<ServerSocket::Client>& client,const std::vector<std::int16_t>& soundBytes) {
-    if (soundBytes.empty()) throw std::runtime_error("ConversationServer::writeResponse(): SoundBytes is empty");
+void ConversationServer::writeResponse(const std::shared_ptr<ServerSocket::Client>& client,const std::vector<std::int16_t>& soundBytes,ServerStatus status) {
+    spdlog::debug("Writing response back to client");
     ServerHeader header{};
-    header.status = 1;
+    header.status = static_cast<uint32_t>(status);
     header.totalLen = soundBytes.size() * sizeof(std::int16_t);
     char* headerPtr = reinterpret_cast<char*>(&header);
     ssize_t headerBytesLeft = sizeof(header);
@@ -115,5 +129,5 @@ void ConversationServer::writeResponse(const std::shared_ptr<ServerSocket::Clien
         dataBytesLeft -= n;
         dataPtr += n;
     }
-    std::cout << "Wrote response to the client" << std::endl;
+    spdlog::debug("Wrote response back to client");
 }

@@ -4,6 +4,7 @@
 #include "../headers/ServerSocket.h"
 
 #include <iostream>
+#include <spdlog/spdlog.h>
 
 void ServerSocket::init() {
     this->fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -21,7 +22,7 @@ void ServerSocket::init() {
     if (listen(this->fd, 10) < 0) {
         throw std::runtime_error("ServerSocket::init(): Listen failed");
     }
-    std::cout << "Server socket started on IP and PORT: " << this->serverInfo.ip << ", " << this->serverInfo.port << std::endl;
+    spdlog::info("Server socket started on IP and PORT: {}, {}",this->serverInfo.ip,this->serverInfo.port);
 }
 
 std::shared_ptr<ServerSocket::Client> ServerSocket::waitForConnection() {

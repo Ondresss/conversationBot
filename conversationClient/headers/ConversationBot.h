@@ -5,7 +5,7 @@
 #include <memory>
 #include "AudioHandler.h"
 #include "ConversationClient.h"
-
+#include <mutex>
 class ConversationBot{
 public:
     ConversationBot(std::shared_ptr<AudioHandler> audioHandler,std::shared_ptr<ConversationClient> client)

@@ -97,11 +97,11 @@ int AudioHandler::recordCallback(void* outputBuffer, void* inputBuffer, unsigned
 int AudioHandler::playbackCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime,
     RtAudioStreamStatus status, void* userData) {
 
+
     auto* ctx = static_cast<PlaybackContext*>(userData);
     int16_t* out = static_cast<int16_t*>(outputBuffer);
-
     std::lock_guard<std::mutex> lock(ctx->mtx);
-
+    ctx->isTalking = true;
     for (unsigned int i = 0; i < nBufferFrames; i++) {
         if (ctx->currentPos >= ctx->currentVector.size()) {
             if (!ctx->queue.empty()) {
@@ -115,6 +115,7 @@ int AudioHandler::playbackCallback(void* outputBuffer, void* inputBuffer, unsign
         }
         out[i] = ctx->currentVector.at(ctx->currentPos++);
     }
+    ctx->isTalking = false;
     return 0;
 
 }
@@ -142,7 +143,7 @@ void AudioHandler::init() {
     try {
         this->audio.openStream(nullptr,&this->parameters,
     RTAUDIO_FLOAT32,this->sampleRate,&this->bufferFrames,&AudioHandler::recordCallback,this);
-        this->filters.push_back(std::make_shared<SilenceFilter>(0.07));
+        this->filters.push_back(std::make_shared<SilenceFilter>(0.1));
     } catch( const std::exception& e ){
         std::cerr << "Error when initializing audio stream." << std::endl;
         std::cerr << e.what() << std::endl;
@@ -209,5 +210,10 @@ void AudioHandler::startPlayback() {
     } catch (const std::exception& e) {
         std::cerr << "void AudioHandler::startPlayback() : " << e.what() << std::endl;
     }
+
+}
+
+bool AudioHandler::isSpeaking() {
+    return !playbackContext.queue.empty() || playbackContext.currentPos < playbackContext.currentVector.size();
 
 }

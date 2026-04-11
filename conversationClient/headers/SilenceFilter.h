@@ -6,6 +6,7 @@
 #include <limits>
 #include <utility>
 #include "IAudioFilter.h"
+#include <cmath>
 class SilenceFilter final : public IAudioFilter {
 public:
     explicit SilenceFilter(float threshHold) : threshold(threshHold) {};

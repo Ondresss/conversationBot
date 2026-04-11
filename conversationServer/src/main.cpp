@@ -8,6 +8,7 @@
 #include "../headers/ConversationServer.h"
 int main(int argc,const char** argv) {
     try {
+        spdlog::set_level(spdlog::level::debug);
         SpeechToTextConverter::ModelPath modelPath = {
             "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/encoder-epoch-99-avg-1-chunk-16-left-128.onnx",
             "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/decoder-epoch-99-avg-1-chunk-16-left-128.onnx",
