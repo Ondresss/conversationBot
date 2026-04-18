@@ -6,7 +6,7 @@
 
 #include "../headers/SilenceFilter.h"
 
-AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames) {
+AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames, double noiseThreshold) {
     this->loadDeviceIds();
 
     unsigned int defaultId = this->audio.getDefaultInputDevice();
@@ -23,7 +23,7 @@ AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsi
 
     this->bufferFrames = bufferFrames;
     this->sampleRate = sampleRate;
-
+    this->noiseThreshold = noiseThreshold;
     this->init();
 }
 
@@ -99,7 +99,7 @@ int AudioHandler::playbackCallback(void* outputBuffer, void* inputBuffer, unsign
 
 
     auto* ctx = static_cast<PlaybackContext*>(userData);
-    int16_t* out = static_cast<int16_t*>(outputBuffer);
+    auto out = static_cast<int16_t*>(outputBuffer);
     std::lock_guard<std::mutex> lock(ctx->mtx);
     ctx->isTalking = true;
     for (unsigned int i = 0; i < nBufferFrames; i++) {
@@ -143,7 +143,7 @@ void AudioHandler::init() {
     try {
         this->audio.openStream(nullptr,&this->parameters,
     RTAUDIO_FLOAT32,this->sampleRate,&this->bufferFrames,&AudioHandler::recordCallback,this);
-        this->filters.push_back(std::make_shared<SilenceFilter>(0.1));
+        this->filters.push_back(std::make_shared<SilenceFilter>(this->noiseThreshold));
     } catch( const std::exception& e ){
         std::cerr << "Error when initializing audio stream." << std::endl;
         std::cerr << e.what() << std::endl;
@@ -180,7 +180,7 @@ void AudioHandler::loadDeviceIds() {
             RtAudio::DeviceInfo info = audio.getDeviceInfo(id);
             if (info.inputChannels > 0) {
                 std::cout << "Found microphone - ID: " << id << " Name: " << info.name << std::endl;
-                this->devices.push_back({id,info});
+                this->devices.emplace_back(id,info);
 
             }
         } catch (const std::exception& e) {
@@ -213,7 +213,7 @@ void AudioHandler::startPlayback() {
 
 }
 
-bool AudioHandler::isSpeaking() {
+bool AudioHandler::isSpeaking() const {
     return !playbackContext.queue.empty() || playbackContext.currentPos < playbackContext.currentVector.size();
 
 }

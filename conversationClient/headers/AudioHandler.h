@@ -18,7 +18,7 @@ public:
         size_t currentPos = 0;
         bool isTalking = false;
     };
-    AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames);
+    AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames,double noiseThreshold = 0.1f );
 
     static int recordCallback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
                     double streamTime, RtAudioStreamStatus status, void *userData );
@@ -30,7 +30,7 @@ public:
     void stopRecording();
     void startPlayback();
 
-    bool isSpeaking();
+    bool isSpeaking() const;
     AudioPacket getNextAudioPacket();
     void pushAudioPacket(AudioPacket audioPacket) { this->audioQueue.push(std::move(audioPacket)); }
     std::mutex& getMutex() {return this->queueMtx;}
@@ -66,5 +66,6 @@ private:
     int speechCounter = 0;
     AudioType lastAudioType = AudioType::NONE;
     PlaybackContext playbackContext{};
+    double noiseThreshold = 0.1f;
 };
 

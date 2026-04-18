@@ -10,9 +10,7 @@ bool SilenceFilter::filter(const float* sample, unsigned int nBufferFrames) {
     for (unsigned int i = 0; i < nBufferFrames; ++i) {
         sum += sample[i] * sample[i];
     }
-
     double rms = std::sqrt(sum / nBufferFrames);
-
     if (rms < threshold) {
         return true;
     }
