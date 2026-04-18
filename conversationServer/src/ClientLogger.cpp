@@ -66,7 +66,7 @@ std::vector<Client> ClientLogger::selectAll() {
         int port = sqlite3_column_int(clientStmt, 2);
 
         Client c(-1, ip, port);
-
+        c.setID(id);
         const char* historySql = "SELECT question, answer FROM history WHERE client_id = ? ORDER BY created_at ASC;";
         sqlite3_stmt* historyStmt;
 

@@ -14,7 +14,8 @@ void ConversationServer::run() {
         while (true) {
             spdlog::info("Waiting for new client....");
             auto client = this->serverSocket->waitForConnection();
-            spdlog::info("New client joined with IP {}",client->getFd());
+            spdlog::info("New client joined with IP {}",client->getIP());
+            this->clients.push_back(client);
             this->clientThreads.emplace_back(&ConversationServer::handleClient, this,client);
         }
     } catch (std::exception& e){
@@ -31,6 +32,18 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
     std::vector<float> audioBuffer;
     try {
         while (true) {
+            if (!client->getIsConnected()) {
+                close(client->getFd());
+                spdlog::warn("Client {} disconnected",client->getId());
+                {
+                    std::lock_guard<std::mutex> lock(this->clientsMutex);
+                    auto it = std::find(this->clients.begin(), this->clients.end(), client);
+                    if (it != this->clients.end()) {
+                        this->clients.erase(it);
+                    }
+                }
+                break;
+            }
             auto currentAudio = this->readAudioFromClient(client);
             if (currentAudio.empty()) {
                 spdlog::info("Read full sentence");

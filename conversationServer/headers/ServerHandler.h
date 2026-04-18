@@ -19,8 +19,9 @@ public:
     void onRequest(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response) override {};
     void setupRestRoutes();
     void setupCors(Pistache::Http::ResponseWriter& response);
-    void getClients(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
 
+    void getClients(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void disconnectClient(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
 
     std::shared_ptr<Pistache::Rest::Router> getRouter() {
         return std::make_shared<Pistache::Rest::Router>(router);
