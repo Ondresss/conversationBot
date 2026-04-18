@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <iostream>
 #include "AudioPacket.h"
+#include "ClientIdentifier.h"
 
 class ConversationClient {
 public:
@@ -22,6 +23,7 @@ public:
     struct ClientHeader {
         uint32_t status = 0x0;
         uint32_t packetLen = 512;
+        uint64_t id = 0x0;
     };
     struct ServerHeader {
         uint32_t status = 0x0;
@@ -30,6 +32,7 @@ public:
     #pragma pack(pop)
     explicit ConversationClient(ServerInfo serverInfo) : serverInfo(std::move(serverInfo)) {
         this->init();
+        this->id = ClientIdentifier::getIdentifier();
     };
     void connectToServer();
     void disconnectFromServer() const;
@@ -41,6 +44,6 @@ private:
     int fd = -1;
     std::vector<std::int16_t> responseBuffer;
     struct sockaddr_in servAddr{};
-
+    uint64_t id = 0x0;
     void init();
 };

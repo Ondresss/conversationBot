@@ -12,7 +12,7 @@ public:
     };
     Client(int clientFd,const std::string& ip,int port)
     : clientFd(clientFd), clientIP(ip), port(port) {
-        this->id = std::hash<std::string>{}(clientIP + std::to_string(this->port));
+        this->id = 0x0;
     }
     Client() = default;
     [[nodiscard]] int getFd() const { return clientFd; }
@@ -25,6 +25,7 @@ public:
     void setIP(const std::string& ip) { this->clientIP = ip; }
     void setFd(int clientFd_) { this->clientFd = clientFd_; }
     void setPort(int port_) { this->port = port_; }
+    void setID(uint64_t id_) { this->id = id_; }
 
     inline void addHistoryEntry(const std::string& question,const std::string& answer) {
         this->historyList.push_back(ClientHistory{question,answer});

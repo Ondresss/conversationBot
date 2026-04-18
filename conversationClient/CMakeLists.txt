@@ -19,6 +19,8 @@ add_executable(conversationBot
         headers/ConversationClient.h
         headers/AudioType.h
         headers/AudioPacket.h
+        headers/ClientIdentifier.h
+        src/ClientIdentifier.cpp
 )
 
 if(RTAUDIO_INCLUDE_DIR)

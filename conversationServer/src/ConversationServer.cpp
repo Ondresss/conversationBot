@@ -14,8 +14,6 @@ void ConversationServer::run() {
         while (true) {
             spdlog::info("Waiting for new client....");
             auto client = this->serverSocket->waitForConnection();
-            auto logger = ClientLogger::getInstance();
-            logger.insert(*client);
             spdlog::info("New client joined with IP {}",client->getFd());
             this->clientThreads.emplace_back(&ConversationServer::handleClient, this,client);
         }
@@ -96,6 +94,15 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
         headerPtr += n;
     }
     size_t numSamples = clientHeader.packetLen / sizeof(float);
+
+    if (client->getId() == 0x0) {
+        client->setID(clientHeader.id);
+        spdlog::info("Client identifier is: {}", client->getId());
+        auto logger = ClientLogger::getInstance();
+        logger.insert(*client);
+        spdlog::info("Client inserted to DB!");
+    }
+
     std::vector<float> packetData(numSamples);
     char* dataPtr = reinterpret_cast<char*>(packetData.data());
     ssize_t dataBytesLeft = clientHeader.packetLen;

@@ -35,7 +35,7 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
     ClientHeader clientHeader{};
     clientHeader.status = static_cast<uint32_t>(audioPacket.type);
     clientHeader.packetLen = audioPacket.samples.size() * sizeof(float);
-
+    clientHeader.id = this->id;
     const char* headerPtr = reinterpret_cast<const char*>(&clientHeader);
     ssize_t headerLeft = sizeof(clientHeader);
 
