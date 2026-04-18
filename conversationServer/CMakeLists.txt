@@ -7,6 +7,8 @@ find_package(nlohmann_json 3.10 REQUIRED)
 find_package(CURL REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system filesystem)
 find_package(spdlog REQUIRED)
+find_package(nlohmann_json REQUIRED)
+find_package(SQLite3 REQUIRED)
 set(ONNX_LIB "/home/andrew/sherpa-onnx/build/_deps/onnxruntime-src/lib/libonnxruntime.so")
 
 add_executable(conversationServer
@@ -21,6 +23,12 @@ add_executable(conversationServer
         headers/SpeechToTextConverter.h
         headers/TextToSpeechConverter.h
         src/TextToSpeechConverter.cpp
+        headers/ServerHandler.h
+        src/ServerHandler.cpp
+        headers/Client.h
+        headers/ClientLogger.h
+        src/ClientLogger.cpp
+        src/Client.cpp
 )
 
 target_include_directories(conversationServer PRIVATE
@@ -38,4 +46,6 @@ target_link_libraries(conversationServer PRIVATE
         Boost::system
         Boost::filesystem
         spdlog::spdlog
+        pistache
+        SQLite::SQLite3
 )

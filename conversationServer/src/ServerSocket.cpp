@@ -25,7 +25,7 @@ void ServerSocket::init() {
     spdlog::info("Server socket started on IP and PORT: {}, {}",this->serverInfo.ip,this->serverInfo.port);
 }
 
-std::shared_ptr<ServerSocket::Client> ServerSocket::waitForConnection() {
+std::shared_ptr<Client> ServerSocket::waitForConnection() {
     socklen_t addrLen = sizeof(this->cliAddr);
     int currentClientFd = accept(this->fd, reinterpret_cast<struct sockaddr*>(&this->cliAddr), &addrLen);
     if (currentClientFd == -1) {
@@ -34,9 +34,9 @@ std::shared_ptr<ServerSocket::Client> ServerSocket::waitForConnection() {
     auto clientSocket = std::make_shared<Client>();
     char ipStr[INET_ADDRSTRLEN];
     if (inet_ntop(AF_INET, &(this->cliAddr.sin_addr), ipStr, INET_ADDRSTRLEN)) {
-        clientSocket->clientIP = std::string(ipStr);
+        clientSocket->setIP(std::string(ipStr));
     }
-    clientSocket->clientFd = currentClientFd;
-    clientSocket->port = ntohs(this->cliAddr.sin_port);
+    clientSocket->setFd(currentClientFd);
+    clientSocket->setPort(ntohs(this->cliAddr.sin_port));
     return clientSocket;
 }

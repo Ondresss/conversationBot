@@ -11,13 +11,9 @@
 #include <arpa/inet.h>
 #include <vector>
 #include "ServerInfo.h"
+#include "Client.h"
 class ServerSocket {
 public:
-    struct Client {
-        int clientFd = -1;
-        std::string clientIP;
-        int port = -1;
-    };
     explicit ServerSocket(ServerInfo serverInfo) : serverInfo(std::move(serverInfo)) {
         this->init();
     };

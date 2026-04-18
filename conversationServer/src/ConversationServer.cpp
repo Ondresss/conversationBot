@@ -6,8 +6,7 @@
 
 #include "../headers/ClientHeader.h"
 
-#include <unistd.h>
-#include <rtaudio/RtAudio.h>
+
 
 void ConversationServer::run() {
     try {
@@ -15,7 +14,9 @@ void ConversationServer::run() {
         while (true) {
             spdlog::info("Waiting for new client....");
             auto client = this->serverSocket->waitForConnection();
-            spdlog::info("New client joined with IP {}",client->clientIP);
+            auto logger = ClientLogger::getInstance();
+            logger.insert(*client);
+            spdlog::info("New client joined with IP {}",client->getFd());
             this->clientThreads.emplace_back(&ConversationServer::handleClient, this,client);
         }
     } catch (std::exception& e){
@@ -24,7 +25,7 @@ void ConversationServer::run() {
     }
 }
 
-void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> client) {
+void ConversationServer::handleClient(std::shared_ptr<Client> client) {
     spdlog::info("Handling the client......");
     const SherpaOnnxOnlineStream* clientStream = nullptr;
     if (this->speechToTextConverter->isOnline()) clientStream = this->speechToTextConverter->createStream();
@@ -46,6 +47,8 @@ void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> clie
                 if (!currentText.empty() && currentText.length() >= 20) {
                     spdlog::info("Input Text: {}", currentText);
                     std::string response = this->llmGateway->askLLM(currentText);
+                    auto logger = ClientLogger::getInstance();
+                    logger.insertSpeech(*client,currentText,response);
                     spdlog::info("LLM RESPONSE: {}", response);
                     spdlog::debug("Starting Piper synthesis...");
                     try {
@@ -53,7 +56,8 @@ void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> clie
                     } catch (const std::exception& e) {
                         spdlog::error("ERR: Exception during TTS");
                         spdlog::error("{}",e.what());
-                        close(client->clientFd);
+                        close(client->getFd());
+                        client->setDisconnected();
                         spdlog::info("Closed connection with client");
                         return;
                     }
@@ -75,15 +79,17 @@ void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> clie
         spdlog::error("void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> client): {}",e.what());
     }
     this->speechToTextConverter->destroyStream(clientStream);
+    client->setDisconnected();
+    close(client->getFd());
     spdlog::debug("Stream destroyed");
 }
-std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr<ServerSocket::Client>& client) {
+std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr<Client>& client) {
     std::vector<float> fullAudio;
     ClientHeader clientHeader{};
     char* headerPtr = reinterpret_cast<char*>(&clientHeader);
     ssize_t headerBytesLeft = sizeof(clientHeader);
     while (headerBytesLeft > 0) {
-        ssize_t n = read(client->clientFd, headerPtr, headerBytesLeft);
+        ssize_t n = read(client->getFd(), headerPtr, headerBytesLeft);
         if (n == 0) throw std::runtime_error("ConversationServer::readAudioFromClient(): Client disconnected while sending header");
         if (n == -1) throw std::runtime_error("ConversationServer::readAudioFromClient(): Error while reading header from client " + std::string(strerror(errno)) );
         headerBytesLeft -= n;
@@ -97,7 +103,7 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
         return {};
     }
     while (dataBytesLeft > 0) {
-        ssize_t n = read(client->clientFd, dataPtr, dataBytesLeft);
+        ssize_t n = read(client->getFd(), dataPtr, dataBytesLeft);
         if (n <= 0) return fullAudio;
         dataBytesLeft -= n;
         dataPtr += n;
@@ -106,7 +112,7 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
     return fullAudio;
 }
 
-void ConversationServer::writeResponse(const std::shared_ptr<ServerSocket::Client>& client,const std::vector<std::int16_t>& soundBytes,ServerStatus status) {
+void ConversationServer::writeResponse(const std::shared_ptr<Client>& client,const std::vector<std::int16_t>& soundBytes,ServerStatus status) {
     spdlog::debug("Writing response back to client");
     ServerHeader header{};
     header.status = static_cast<uint32_t>(status);
@@ -114,7 +120,7 @@ void ConversationServer::writeResponse(const std::shared_ptr<ServerSocket::Clien
     char* headerPtr = reinterpret_cast<char*>(&header);
     ssize_t headerBytesLeft = sizeof(header);
     while (headerBytesLeft > 0) {
-        ssize_t n = write(client->clientFd, headerPtr, headerBytesLeft);
+        ssize_t n = write(client->getFd(), headerPtr, headerBytesLeft);
         if (n == 0) throw std::runtime_error("ConversationServer::writeResponse(): Client disconnected while sending header");
         if (n == -1) throw std::runtime_error("ConversationServer::writeResponse(): Error while reading header from client " + std::string(strerror(errno)) );
         headerBytesLeft -= n;
@@ -124,7 +130,7 @@ void ConversationServer::writeResponse(const std::shared_ptr<ServerSocket::Clien
     auto dataPtr = reinterpret_cast<const char*>(soundBytes.data());
     ssize_t dataBytesLeft = header.totalLen;
     while (dataBytesLeft > 0) {
-        ssize_t n = write(client->clientFd, dataPtr, dataBytesLeft);
+        ssize_t n = write(client->getFd(), dataPtr, dataBytesLeft);
         if (n <= 0) std::cout << "Client disconnected or ended\n";
         dataBytesLeft -= n;
         dataPtr += n;

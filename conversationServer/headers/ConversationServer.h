@@ -14,6 +14,7 @@
 #include "LLMGateway.h"
 #include "TextToSpeechConverter.h"
 #include <spdlog/spdlog.h>
+#include "../headers/ClientLogger.h"
 class ConversationServer {
 public:
     ConversationServer(ServerInfo serverInfo,
@@ -33,9 +34,9 @@ public:
         }
     }
     void run();
-    void handleClient(std::shared_ptr<ServerSocket::Client> client);
-    std::vector<float> readAudioFromClient(const std::shared_ptr<ServerSocket::Client>& client);
-    void writeResponse(const std::shared_ptr<ServerSocket::Client>& client,const std::vector<std::int16_t>& soundBytes,ServerStatus status);
+    void handleClient(std::shared_ptr<Client> client);
+    std::vector<float> readAudioFromClient(const std::shared_ptr<Client>& client);
+    void writeResponse(const std::shared_ptr<Client>& client,const std::vector<std::int16_t>& soundBytes,ServerStatus status);
 private:
     std::shared_ptr<ServerSocket> serverSocket = nullptr;
     std::shared_ptr<LLMGateway> llmGateway = nullptr;

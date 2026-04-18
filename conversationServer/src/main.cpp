@@ -6,6 +6,9 @@
 #include <iostream>
 #include <ostream>
 #include "../headers/ConversationServer.h"
+#include <pistache/net.h>
+#include "../headers/ServerHandler.h"
+#include <spdlog/spdlog.h>
 int main(int argc,const char** argv) {
     try {
         spdlog::set_level(spdlog::level::debug);
@@ -30,8 +33,21 @@ int main(int argc,const char** argv) {
         TextToSpeechConverter::ConfigParams configParams {
             "/home/andrew/conversationBot/conversationServer/ttsModels/en_US-lessac-medium.onnx"
         };
-        ConversationServer server({9999,"0.0.0.0"},senseVoiceModelPath,llmGateway,configParams);
-        server.run();
+        std::shared_ptr<ConversationServer> server = std::make_shared<ConversationServer>(ServerInfo{9999,"0.0.0.0"},senseVoiceModelPath,llmGateway,configParams);
+        std::thread logicThread([&]() {
+            server->run();
+        });
+        logicThread.detach();
+        Pistache::Address addr(Pistache::Ipv4::any(), Pistache::Port(std::atoi(argv[5])));
+        auto opts = Pistache::Http::Endpoint::options().threads(1);
+        auto service = std::make_shared<ServerHandler>(server);
+        Pistache::Http::Endpoint webServer(addr);
+        webServer.init(opts);
+        webServer.setHandler(service->getRouter()->handler());
+        spdlog::info("Web server started on port {} ",std::atoi(argv[5]));
+        webServer.serve();
+        spdlog::warn("Web server stopped ");
+
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
         std::exit(EXIT_FAILURE);
