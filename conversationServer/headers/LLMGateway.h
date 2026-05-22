@@ -13,6 +13,7 @@ public:
         std::string binaryPath;
         int port = -1;
         std::string modelPath;
+        std::string language  = "en";
     };
     struct CurlDeleter {
         void operator()(CURL* curl_) const {

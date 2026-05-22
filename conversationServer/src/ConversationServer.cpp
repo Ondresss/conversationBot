@@ -44,10 +44,11 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                 }
                 break;
             }
-            auto currentAudio = this->readAudioFromClient(client);
-            if (currentAudio.empty()) {
+            uint32_t readStatus = 0x0;
+            auto currentAudio = this->readAudioFromClient(client,readStatus);
+            if (readStatus == 3) {
                 spdlog::info("Read full sentence");
-                if (audioBuffer.size() <= 8000) {
+                if (audioBuffer.size() <= 12000) {
                     spdlog::error("Client sentence was too short!");
                     this->writeResponse(client,{},ServerStatus::TOOSHORT);
                     audioBuffer.clear();
@@ -55,7 +56,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                 }
                 std::string currentText = this->speechToTextConverter->processAudioChunk(clientStream, audioBuffer);
                 spdlog::info("Audio processed");
-                if (!currentText.empty() && currentText.length() >= 20) {
+                if (!currentText.empty()) {
                     spdlog::info("Input Text: {}", currentText);
                     std::string response = this->llmGateway->askLLM(currentText);
                     auto logger = ClientLogger::getInstance();
@@ -94,7 +95,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
     close(client->getFd());
     spdlog::debug("Stream destroyed");
 }
-std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr<Client>& client) {
+std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr<Client>& client,uint32_t& status) {
     std::vector<float> fullAudio;
     ClientHeader clientHeader{};
     char* headerPtr = reinterpret_cast<char*>(&clientHeader);
@@ -107,7 +108,7 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
         headerPtr += n;
     }
     size_t numSamples = clientHeader.packetLen / sizeof(float);
-
+    status = clientHeader.status;
     if (client->getId() == 0x0) {
         client->setID(clientHeader.id);
         spdlog::info("Client identifier is: {}", client->getId());
@@ -119,7 +120,7 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
     std::vector<float> packetData(numSamples);
     char* dataPtr = reinterpret_cast<char*>(packetData.data());
     ssize_t dataBytesLeft = clientHeader.packetLen;
-    if (clientHeader.status == 3) {
+    if (!numSamples || clientHeader.status == 3) {
         return {};
     }
     while (dataBytesLeft > 0) {
@@ -156,4 +157,85 @@ void ConversationServer::writeResponse(const std::shared_ptr<Client>& client,con
         dataPtr += n;
     }
     spdlog::debug("Wrote response back to client");
+}
+
+
+std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std::string& filename) {
+
+    std::ifstream ifs(filename);
+    if (!ifs.is_open()) {
+        spdlog::error("ConversationServer::loadFromConfig(): Could not open file {}", filename);
+        std::exit(EXIT_FAILURE);
+    }
+    std::stringstream ss;
+    ss << ifs.rdbuf();
+    nlohmann::json json = nlohmann::json::parse(ss.str());
+    SpeechToTextConverter::ModelPath modelPath;
+    LLMGateway::LLMParams params;
+    TextToSpeechConverter::ConfigParams configParams;
+    if (json.contains("STT") && json["STT"].contains("active_model")) {
+        std::string activeModel = json["STT"]["active_model"];
+        auto sttSection = json["STT"];
+
+        if (activeModel == "senseVoice" && sttSection.contains("senseVoice")) {
+            modelPath.encoderPath = sttSection["senseVoice"].value("model_path", "");
+            modelPath.decoderPath = "";
+            modelPath.tokenPath   = sttSection["senseVoice"].value("tokens_path", "");
+            modelPath.joinerPath  = sttSection["senseVoice"].value("language", "en");
+            modelPath.modelName   = "senseVoice";
+        }
+        else if (activeModel == "zipformer" && sttSection.contains("zipformer")) {
+            modelPath.encoderPath = sttSection["zipformer"].value("encoder_path", "");
+            modelPath.decoderPath = sttSection["zipformer"].value("decoder_path", "");
+            modelPath.tokenPath   = sttSection["zipformer"].value("tokens_path", "");
+            modelPath.joinerPath  = sttSection["zipformer"].value("joiner_path", "");
+            modelPath.modelName   = "zipformer";
+        }
+        else if (activeModel == "whisper" && sttSection.contains("whisper")) {
+            modelPath.encoderPath = sttSection["whisper"].value("encoder_path", "");
+            modelPath.decoderPath = sttSection["whisper"].value("decoder_path", "");
+            modelPath.tokenPath   = sttSection["whisper"].value("tokens_path", "");
+            modelPath.joinerPath  = sttSection["whisper"].value("language", "cs");
+            modelPath.modelName   = "whisper";
+        }
+        else {
+            spdlog::error("ConversationServer::loadFromConfig(): Unknown or missing active STT model: {}", activeModel);
+            std::exit(EXIT_FAILURE);
+        }
+    } else {
+        spdlog::error("ConversationServer::loadFromConfig(): Missing 'STT' or 'active_model' in config");
+        std::exit(EXIT_FAILURE);
+    }
+    if (json.contains("llm")) {
+        auto llm = json["llm"];
+        params.port = llm.value("port", 8080);
+        params.binaryPath = llm.value("bin", "");
+        params.modelPath = llm.value("instruct", "");
+        params.language = llm.value("lang", "en");
+    } else {
+        spdlog::error("ConversationServer::loadFromConfig(): Missing 'llm' section in config");
+        std::exit(EXIT_FAILURE);
+    }
+    if (json.contains("tts")) {
+        configParams.modelPath = json["tts"].value("model_path", "");
+    } else {
+        spdlog::warn("ConversationServer::loadFromConfig(): Missing 'tts' section, using defaults");
+    }
+
+    std::shared_ptr<LLMGateway> llmGateway = std::make_shared<LLMGateway>(params);
+    std::shared_ptr<SpeechToTextConverter> sttConverter = std::make_shared<SpeechToTextConverter>(modelPath);
+    std::shared_ptr<TextToSpeechConverter> ttsConverter = std::make_shared<TextToSpeechConverter>(configParams);
+
+    ServerInfo serverInfo;
+
+    if (json.contains("info")) {
+        serverInfo.port = json["info"].value("port", 9999);
+        serverInfo.ip = json["info"].value("ip", "0.0.0.0");
+    } else {
+        spdlog::error("ConversationServer::loadFromConfig(): Missing server info");
+        std::exit(EXIT_FAILURE);
+    }
+
+    return std::make_shared<ConversationServer>(serverInfo,modelPath,llmGateway,configParams);
+
 }

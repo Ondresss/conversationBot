@@ -46,7 +46,7 @@ public:
 
     }
     PlaybackContext& getPlaybackContextData() {return this->playbackContext;}
-
+    int getSpeechCounter() const {return this->speechCounter;}
 private:
     void init();
     AudioType applyFilters(const float* samples,unsigned int nBufferFrames);

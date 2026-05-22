@@ -7,6 +7,7 @@ SpeechToTextConverter::SpeechToTextConverter(const ModelPath& modelPath) {
         SherpaOnnxOfflineRecognizerConfig config = {};
         std::ifstream f(modelPath.encoderPath);
         if (!f.good()) {
+            std::cerr << modelPath.encoderPath << " could not be found!" << std::endl;
             throw std::runtime_error("SpeechToTextConverter::SpeechToTextConverter(const ModelPath& modelPath): Model not found!");
         } else {
             spdlog::info("Model found");
@@ -24,6 +25,33 @@ SpeechToTextConverter::SpeechToTextConverter(const ModelPath& modelPath) {
         if (!this->offline_recognizer) {
             throw std::runtime_error("SherpaOnnxCreateOfflineRecognizer failed!");
         }
+    }
+    else if (modelPath.modelName == "whisper") {
+        SherpaOnnxOfflineRecognizerConfig config = {};
+
+        std::ifstream f_enc(modelPath.encoderPath);
+        std::ifstream f_dec(modelPath.decoderPath);
+        if (!f_enc.good() || !f_dec.good()) {
+            throw std::runtime_error("SpeechToTextConverter::SpeechToTextConverter(const ModelPath& modelPath): Whisper Encoder or Decoder not found!");
+        } else {
+            spdlog::info("Whisper Encoder and Decoder found");
+        }
+
+        config.model_config.whisper.encoder = modelPath.encoderPath.c_str();
+        config.model_config.whisper.decoder = modelPath.decoderPath.c_str();
+        config.model_config.tokens = modelPath.tokenPath.c_str();
+        config.model_config.model_type = "whisper";
+        config.model_config.whisper.language = "cs";
+        config.model_config.whisper.task = "transcribe";
+        config.model_config.num_threads = 4;
+        config.model_config.debug = 0;
+
+        this->offline_recognizer = SherpaOnnxCreateOfflineRecognizer(&config);
+
+        if (!this->offline_recognizer) {
+            throw std::runtime_error("SherpaOnnxCreateOfflineRecognizer failed for Whisper!");
+        }
+
     } else {
         SherpaOnnxOnlineRecognizerConfig config = {};
         config.feat_config.sample_rate = 16000;

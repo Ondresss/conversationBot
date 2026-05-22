@@ -58,6 +58,7 @@ bool AudioHandler::hasPackets() {
     return !this->audioQueue.empty();
 }
 
+
 int AudioHandler::recordCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime,
     RtAudioStreamStatus status, void* userData) {
     auto handler = static_cast<AudioHandler*>(userData);
@@ -81,7 +82,11 @@ int AudioHandler::recordCallback(void* outputBuffer, void* inputBuffer, unsigned
     if (filterRes == AudioType::SILENCE) {
         AudioPacket audioPacket;
         audioPacket.type = AudioType::SILENCE;
-        audioPacket.samples = {};
+        if (handler->getSpeechCounter() > 0) {
+            audioPacket.samples = std::vector<float>(samples, samples + nBufferFrames);
+        } else {
+            audioPacket.samples = {};
+        }
         handler->pushAudioPacket(audioPacket);
     }
     else {

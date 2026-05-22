@@ -1,0 +1,35 @@
+{
+  "STT": {
+    "active_model": "senseVoice",
+    "senseVoice": {
+      "model_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/model.int8.onnx",
+      "tokens_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/tokens.txt",
+      "language": "en"
+    },
+    "zipformer": {
+      "encoder_path": "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/encoder-epoch-99-avg-1-chunk-16-left-128.onnx",
+      "decoder_path": "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/decoder-epoch-99-avg-1-chunk-16-left-128.onnx",
+      "tokens_path": "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/tokens.txt",
+      "joiner_path": "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/joiner-epoch-99-avg-1-chunk-16-left-128.onnx"
+    },
+    "whisper": {
+      "encoder_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/sherpa-onnx-whisper-base/base-encoder.int8.onnx",
+      "decoder_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/sherpa-onnx-whisper-base/base-decoder.int8.onnx",
+      "tokens_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/sherpa-onnx-whisper-base/base-tokens.txt",
+      "language": "cs"
+    }
+  },
+  "llm": {
+    "port": 8080,
+    "bin": "/home/andrew/llama.cpp/build/bin/llama-server",
+    "instruct": "/home/andrew/llama.cpp/build/bin/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
+    "lang": "en"
+  },
+  "tts": {
+    "model_path": "/home/andrew/conversationBot/conversationServer/ttsModels/en_US-lessac-medium.onnx"
+  },
+  "info": {
+    "port": 9999,
+    "ip": "0.0.0.0"
+  }
+}

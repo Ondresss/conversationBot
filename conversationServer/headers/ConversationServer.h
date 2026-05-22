@@ -36,10 +36,12 @@ public:
     }
     void run();
     void handleClient(std::shared_ptr<Client> client);
-    std::vector<float> readAudioFromClient(const std::shared_ptr<Client>& client);
+    std::vector<float> readAudioFromClient(const std::shared_ptr<Client>& client,uint32_t& status);
     void writeResponse(const std::shared_ptr<Client>& client,const std::vector<std::int16_t>& soundBytes,ServerStatus status);
 
     [[nodiscard]] std::vector<std::shared_ptr<Client>>& getClients()  { return this->clients; }
+
+    static std::shared_ptr<ConversationServer> loadFromConfig(const std::string& filename);
 private:
     std::shared_ptr<ServerSocket> serverSocket = nullptr;
     std::shared_ptr<LLMGateway> llmGateway = nullptr;
