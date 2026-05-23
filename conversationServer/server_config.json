@@ -26,7 +26,9 @@
     "lang": "en"
   },
   "tts": {
-    "model_path": "/home/andrew/conversationBot/conversationServer/ttsModels/en_US-lessac-medium.onnx"
+    "lang": "en",
+    "model_path_en": "/home/andrew/conversationBot/conversationServer/ttsModels/en_US-lessac-medium.onnx",
+    "model_path_cs": "/home/andrew/conversationBot/conversationServer/ttsModels/cs_CZ-jirka-medium.onnx"
   },
   "info": {
     "port": 9999,

@@ -59,6 +59,11 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                 if (!currentText.empty()) {
                     spdlog::info("Input Text: {}", currentText);
                     std::string response = this->llmGateway->askLLM(currentText);
+                    if (response == "IGNORE" || response == "IGNORE." || response.find("IGNORE") != std::string::npos) {
+                        spdlog::info("LLM requested to IGNORE this sentence (detected foreign language or junk text).");
+                        this->writeResponse(client, {},ServerStatus::EMPTY_RESPONSE);
+                        continue;
+                    }
                     auto logger = ClientLogger::getInstance();
                     logger.insertSpeech(*client,currentText,response);
                     spdlog::info("LLM RESPONSE: {}", response);
@@ -125,7 +130,7 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
     }
     while (dataBytesLeft > 0) {
         ssize_t n = read(client->getFd(), dataPtr, dataBytesLeft);
-        if (n <= 0) return fullAudio;
+        if (n <= 0) throw std::runtime_error("ConversationServer::readAudioFromClient(): Client disconnected or error while reading data from client");;
         dataBytesLeft -= n;
         dataPtr += n;
     }
@@ -152,7 +157,7 @@ void ConversationServer::writeResponse(const std::shared_ptr<Client>& client,con
     ssize_t dataBytesLeft = header.totalLen;
     while (dataBytesLeft > 0) {
         ssize_t n = write(client->getFd(), dataPtr, dataBytesLeft);
-        if (n <= 0) std::cout << "Client disconnected or ended\n";
+        if (n <= 0) throw std::runtime_error("ConversationServer::writeResponse(): Client disconnected while sending data");
         dataBytesLeft -= n;
         dataPtr += n;
     }
@@ -217,15 +222,18 @@ std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std
         std::exit(EXIT_FAILURE);
     }
     if (json.contains("tts")) {
-        configParams.modelPath = json["tts"].value("model_path", "");
+        if (json["tts"].value("lang","en") == "cs") {
+            configParams.modelPath = json["tts"].value("model_path_cs", "");
+            spdlog::info("Loaded Czech TTS model on path {}", configParams.modelPath);
+        } else {
+            configParams.modelPath = json["tts"].value("model_path_en", "");
+            spdlog::info("Loaded English TTS model on path {}", configParams.modelPath);
+        }
     } else {
         spdlog::warn("ConversationServer::loadFromConfig(): Missing 'tts' section, using defaults");
     }
 
     std::shared_ptr<LLMGateway> llmGateway = std::make_shared<LLMGateway>(params);
-    std::shared_ptr<SpeechToTextConverter> sttConverter = std::make_shared<SpeechToTextConverter>(modelPath);
-    std::shared_ptr<TextToSpeechConverter> ttsConverter = std::make_shared<TextToSpeechConverter>(configParams);
-
     ServerInfo serverInfo;
 
     if (json.contains("info")) {
@@ -235,6 +243,7 @@ std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std
         spdlog::error("ConversationServer::loadFromConfig(): Missing server info");
         std::exit(EXIT_FAILURE);
     }
+    spdlog::info("Server attributes loaded successfuly");
 
     return std::make_shared<ConversationServer>(serverInfo,modelPath,llmGateway,configParams);
 

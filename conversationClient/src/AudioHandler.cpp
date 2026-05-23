@@ -35,7 +35,7 @@ int AudioHandler::checkForEndSentence(AudioType type) {
         return 0;
     }
 
-    const int endSentenceThreshold = 20;
+    const int endSentenceThreshold = 45;
 
     if (this->silenceCounter >= endSentenceThreshold && this->speechCounter > 0) {
         this->speechCounter = 0;
