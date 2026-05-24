@@ -24,14 +24,13 @@ std::string LLMGateway::askLLM(const std::string& text) {
             {"content", "You are a friendly and concise voice assistant for an interactive toy. "
                         "Keep your answers short, direct, and conversational (max 2-3 sentences). "
                         "Never say 'As an AI language model' or bring up your limitations. "
-                        "CRITICAL RULE: If the user's input is in a foreign language (like Czech), "
-                        "or if it is a garbled jumble of words that makes no sense in English, "
+                        "CRITICAL RULE: If the user's input is in a foreign language (like Czech) OR ANY OTHER LANGUAGE LIKE CHINESE ETC, "
                         "you MUST reply with exactly one word: \"IGNORE\". Do not say anything else."}
         });
     } else if (this->params.language == "cs") {
         messages.push_back({
              {"role", "system"},
-             {"content", "Jsi pratelsky asistent pro interaktivni hracku. Odpovidej vzdy v ceskem jazyce, strucne, jasne a kamaradsky. Ignoruj pripadne opakovani slov na vstupu, ktera vznikla chybou prepisu reci."}
+             {"content", "Jsi pratelsky asistent pro interaktivni hracku. Odpovidej vzdy v ceskem jazyce, strucne, jasne a kamaradsky. Ignoruj pripadne opakovani slov na vstupu, ktera vznikla chybou prepisu reci a odepis IGNORE pokud text bude v jinem jazyce jako treba Anglictina."}
          });
     }
 

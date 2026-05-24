@@ -62,6 +62,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                     if (response == "IGNORE" || response == "IGNORE." || response.find("IGNORE") != std::string::npos) {
                         spdlog::info("LLM requested to IGNORE this sentence (detected foreign language or junk text).");
                         this->writeResponse(client, {},ServerStatus::EMPTY_RESPONSE);
+                        audioBuffer.clear();
                         continue;
                     }
                     auto logger = ClientLogger::getInstance();
