@@ -11,3 +11,14 @@ bool LanguageValidator::validateEnglish(const std::string& text) {
     });
 
 }
+
+bool LanguageValidator::isJunkOrEmpty(const std::string& text) {
+    if (text.empty()) return true;
+
+    for (char c : text) {
+        if (std::isalnum(static_cast<unsigned   char>(c))) {
+            return false;
+        }
+    }
+    return true;
+}

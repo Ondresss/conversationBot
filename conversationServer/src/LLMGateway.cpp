@@ -24,21 +24,22 @@ std::string LLMGateway::askLLM(const std::string& text) {
             return "IGNORE";
         }
         messages.push_back({
-            {"role", "system"},
-            {"content", "You are a short voice assistant. "
-                        "CRITICAL: If the input is NOT in English (e.g. it is Chinese, Czech, trash, or single characters like '.', '我', 'Jak'), "
-                        "you MUST reply with ONLY the single word: IGNORE. "
-                        "Examples:\n"
-                        "User: 我 -> Assistant: IGNORE\n"
-                        "User: . -> Assistant: IGNORE\n"
-                        "User: Hello -> Assistant: Hi there!"}
+    {"role", "system"},
+    {"content", "You are a helpful voice assistant. Speak English only.\n\n"
+                "RULES:\n"
+                "1. It is OK if the user's English grammar is imperfect or broken. Respond normally.\n"
+                "2. If the input is completely in another language (like Czech, Chinese) or is pure trash/symbols, you MUST reply with ONLY the single word: IGNORE."
+                "3. If the user asks about your age, name, or identity, just say you are an AI assistant and you don't have an age.\n"}
         });
 
     } else if (this->params.language == "cs") {
         messages.push_back({
-             {"role", "system"},
-             {"content", "Jsi pratelsky asistent pro interaktivni hracku. Odpovidej vzdy v ceskem jazyce, strucne, jasne a kamaradsky. Ignoruj pripadne opakovani slov na vstupu, ktera vznikla chybou prepisu reci a odepis IGNORE pokud text bude v jinem jazyce jako treba Anglictina."}
-         });
+          {"role", "system"},
+          {"content", "Jsi mluvící hračka. Odpovídej česky, kamarádsky a velmi stručně (1-2 věty).\n"
+                      "PRAVIDLO: Pokud text nedává smysl, je to cizí jazyk, nebo jen jedno náhodné slovo (např. '*Svělí*'), "
+                      "odpověz POUZE slovem: IGNORE\n"
+                      "Příklad: 'Ahoj' -> 'Ahoj kamaráde!'; '*Svělí*' -> IGNORE; 'Hello' -> IGNORE"}
+     });
     }
 
     messages.push_back({{"role", "user"}, {"content", text}});
@@ -48,6 +49,7 @@ std::string LLMGateway::askLLM(const std::string& text) {
     json["stream"] = false;
 
     std::string jsonData = json.dump();
+
 
     curl_easy_setopt(this->curl.get(), CURLOPT_WRITEFUNCTION, LLMGateway::writeCallback);
     curl_easy_setopt(this->curl.get(), CURLOPT_WRITEDATA, &readBuffer);

@@ -9,4 +9,5 @@ class LanguageValidator {
 public:
     LanguageValidator() = default;
     static bool validateEnglish(const std::string& text);
+    static bool isJunkOrEmpty(const std::string& text);
 };

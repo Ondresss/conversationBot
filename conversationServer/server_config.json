@@ -33,5 +33,10 @@
   "info": {
     "port": 9999,
     "ip": "0.0.0.0"
+  },
+  "wakeWord": {
+      "state": true,
+      "expireTime": 120,
+      "word": "hello"
   }
 }

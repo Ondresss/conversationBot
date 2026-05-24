@@ -56,16 +56,20 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                 }
                 std::string currentText = this->speechToTextConverter->processAudioChunk(clientStream, audioBuffer);
                 spdlog::info("Audio processed");
-                if (!currentText.empty()) {
+                if (!LanguageValidator::isJunkOrEmpty(currentText)) {
                     spdlog::info("Input Text: {}", currentText);
+                    bool passSession = this->handleSession(currentText);
+                    if (!passSession) {
+                        spdlog::info("Ignoring response due to invalid session. Question was: '{}'", currentText);
+                        this->sendEmptyResponse(client,audioBuffer);
+                        continue;
+                    }
                     std::string response = this->llmGateway->askLLM(currentText);
                     spdlog::info("LLM RESPONSE: {}", response);
                     std::regex ignoreRegex("ignore", std::regex_constants::icase);
-
                     if (std::regex_search(response, ignoreRegex)) {
                         spdlog::info("LLM requested to IGNORE this sentence (detected foreign language or junk text). Response was: '{}'", response);
-                        this->writeResponse(client, {}, ServerStatus::EMPTY_RESPONSE);
-                        audioBuffer.clear();
+                        this->sendEmptyResponse(client,audioBuffer);
                         continue;
                     }
                     auto logger = ClientLogger::getInstance();
@@ -87,7 +91,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                     this->writeResponse(client, audioOut,ServerStatus::OK);
                     spdlog::debug("Response written to socket.");
                 } else {
-                    spdlog::error("Empty text response!");
+                    spdlog::error("Empty text or junk text!");
                     this->writeResponse(client,{},ServerStatus::EMPTY_RESPONSE);
                 }
                 audioBuffer.clear();
@@ -246,8 +250,45 @@ std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std
         spdlog::error("ConversationServer::loadFromConfig(): Missing server info");
         std::exit(EXIT_FAILURE);
     }
+    WakeWordParams wakeWordParams;
+    if (json.contains("wakeWord")) {
+        wakeWordParams.useWakeWord = json["wakeWord"].value("state", false);
+        wakeWordParams.sessionExpireTime  = json["wakeWord"].value("expireTime", 0);
+        wakeWordParams.word = json["wakeWord"].value("word", "andrew");
+
+        spdlog::info("Wake word usage: {}", wakeWordParams.useWakeWord ? "true" : "false");
+        if (wakeWordParams.useWakeWord) {
+            spdlog::info("Using wake word: {}",wakeWordParams.word);
+            spdlog::info("Wake word session time: {}", wakeWordParams.sessionExpireTime);
+        }
+    } else {
+        spdlog::error("ConversationServer::loadFromConfig(): Missing wake word info");
+        wakeWordParams.useWakeWord = false;
+    }
+
     spdlog::info("Server attributes loaded successfuly");
 
-    return std::make_shared<ConversationServer>(serverInfo,modelPath,llmGateway,configParams);
+    return std::make_shared<ConversationServer>(serverInfo,modelPath,llmGateway,configParams,wakeWordParams);
 
+}
+
+
+bool ConversationServer::handleSession(const std::string& response) {
+    if (this->conversationSession) {
+        std::regex ignoreRegex(this->wordParams.word, std::regex_constants::icase);
+        bool hasKeyword = std::regex_search(response, ignoreRegex);
+        bool isWindowOpen = this->conversationSession->isSessionActive();
+
+        if (hasKeyword || isWindowOpen) {
+            this->conversationSession->refreshSession();
+            return true;
+        }
+        return false;
+    }
+    return true;
+}
+
+void ConversationServer::sendEmptyResponse(std::shared_ptr<Client> client,std::vector<float>& audioBuffer) {
+    this->writeResponse(client, {}, ServerStatus::EMPTY_RESPONSE);
+    audioBuffer.clear();
 }
