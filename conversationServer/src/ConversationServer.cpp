@@ -59,15 +59,17 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                 if (!currentText.empty()) {
                     spdlog::info("Input Text: {}", currentText);
                     std::string response = this->llmGateway->askLLM(currentText);
-                    if (response == "IGNORE" || response == "IGNORE." || response.find("IGNORE") != std::string::npos) {
-                        spdlog::info("LLM requested to IGNORE this sentence (detected foreign language or junk text).");
-                        this->writeResponse(client, {},ServerStatus::EMPTY_RESPONSE);
+                    spdlog::info("LLM RESPONSE: {}", response);
+                    std::regex ignoreRegex("ignore", std::regex_constants::icase);
+
+                    if (std::regex_search(response, ignoreRegex)) {
+                        spdlog::info("LLM requested to IGNORE this sentence (detected foreign language or junk text). Response was: '{}'", response);
+                        this->writeResponse(client, {}, ServerStatus::EMPTY_RESPONSE);
                         audioBuffer.clear();
                         continue;
                     }
                     auto logger = ClientLogger::getInstance();
                     logger.insertSpeech(*client,currentText,response);
-                    spdlog::info("LLM RESPONSE: {}", response);
                     spdlog::debug("Starting Piper synthesis...");
                     try {
                         this->textToSpeechConverter->convertTextToSpeech(response);

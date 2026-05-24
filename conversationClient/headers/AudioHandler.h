@@ -18,7 +18,7 @@ public:
         size_t currentPos = 0;
         bool isTalking = false;
     };
-    AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames,double noiseThreshold = 0.1f );
+    AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames,double noiseThreshold = 0.1f,int endSentenceThreshold = 45 );
 
     static int recordCallback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
                     double streamTime, RtAudioStreamStatus status, void *userData );
@@ -67,5 +67,6 @@ private:
     AudioType lastAudioType = AudioType::NONE;
     PlaybackContext playbackContext{};
     double noiseThreshold = 0.1f;
+    int endSentenceThreshold = 45;
 };
 

@@ -13,20 +13,27 @@ std::size_t LLMGateway::writeCallback(void* contents, size_t size, size_t nmemb,
 }
 
 std::string LLMGateway::askLLM(const std::string& text) {
+
     std::string readBuffer;
     nlohmann::json json;
 
     nlohmann::json messages = nlohmann::json::array();
 
     if (this->params.language == "en") {
+        if (!LanguageValidator::validateEnglish(text)) {
+            return "IGNORE";
+        }
         messages.push_back({
             {"role", "system"},
-            {"content", "You are a friendly and concise voice assistant for an interactive toy. "
-                        "Keep your answers short, direct, and conversational (max 2-3 sentences). "
-                        "Never say 'As an AI language model' or bring up your limitations. "
-                        "CRITICAL RULE: If the user's input is in a foreign language (like Czech) OR ANY OTHER LANGUAGE LIKE CHINESE ETC, "
-                        "you MUST reply with exactly one word: \"IGNORE\". Do not say anything else."}
+            {"content", "You are a short voice assistant. "
+                        "CRITICAL: If the input is NOT in English (e.g. it is Chinese, Czech, trash, or single characters like '.', '我', 'Jak'), "
+                        "you MUST reply with ONLY the single word: IGNORE. "
+                        "Examples:\n"
+                        "User: 我 -> Assistant: IGNORE\n"
+                        "User: . -> Assistant: IGNORE\n"
+                        "User: Hello -> Assistant: Hi there!"}
         });
+
     } else if (this->params.language == "cs") {
         messages.push_back({
              {"role", "system"},

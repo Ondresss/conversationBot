@@ -6,7 +6,7 @@
 
 #include "../headers/SilenceFilter.h"
 
-AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames, double noiseThreshold) {
+AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames, double noiseThreshold,int endSentenceThreshold) {
     this->loadDeviceIds();
 
     unsigned int defaultId = this->audio.getDefaultInputDevice();
@@ -16,7 +16,7 @@ AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsi
     }
 
     std::cout << "DEBUG: Default Input Device ID: " << defaultId << std::endl;
-
+    this->endSentenceThreshold = endSentenceThreshold;
     this->parameters.deviceId = defaultId;
     this->parameters.nChannels = noChannels;
     this->parameters.firstChannel = firstChanel;
@@ -35,9 +35,7 @@ int AudioHandler::checkForEndSentence(AudioType type) {
         return 0;
     }
 
-    const int endSentenceThreshold = 45;
-
-    if (this->silenceCounter >= endSentenceThreshold && this->speechCounter > 0) {
+    if (this->silenceCounter >= this->endSentenceThreshold && this->speechCounter > 0) {
         this->speechCounter = 0;
         this->silenceCounter = 0;
         return 1;

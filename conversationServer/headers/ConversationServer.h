@@ -15,7 +15,7 @@
 #include "TextToSpeechConverter.h"
 #include <spdlog/spdlog.h>
 #include "../headers/ClientLogger.h"
-
+#include <regex>
 class ConversationServer {
 public:
     ConversationServer(ServerInfo serverInfo,

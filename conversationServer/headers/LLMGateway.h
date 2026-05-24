@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <curl/curl.h>
 #include <memory>
+#include "LanguageValidator.h"
 class LLMGateway {
 public:
     struct LLMParams {
