@@ -23,6 +23,7 @@
   ..
 
 6. make -j$(nproc)
+7. sudo make install
 
 ### Install RT-audio (Source)
 1. git clone https://github.com/thestk/rtaudio.git
