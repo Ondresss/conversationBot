@@ -14,6 +14,9 @@
 #include "LLMGateway.h"
 #include "TextToSpeechConverter.h"
 #include <spdlog/spdlog.h>
+#include <spdlog/async.h>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 #include "../headers/ClientLogger.h"
 #include <regex>
 #include  "ConversationSession.h"
@@ -57,6 +60,7 @@ public:
     [[nodiscard]] std::vector<std::shared_ptr<Client>>& getClients()  { return this->clients; }
 
     static std::shared_ptr<ConversationServer> loadFromConfig(const std::string& filename);
+    static void initLogging();
     void sendEmptyResponse(std::shared_ptr<Client> client,std::vector<float>& audioBuffer);
 private:
     std::shared_ptr<ServerSocket> serverSocket = nullptr;

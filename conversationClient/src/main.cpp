@@ -1,10 +1,19 @@
 #include <iostream>
+#include <spdlog/spdlog.h>
 
-#include "../../conversationServer/headers/ServerInfo.h"
+#ifdef __linux_specific__
+#include <cstdlib>
+#endif
+
 #include "../headers/AudioHandler.h"
 #include "../headers/ConversationBot.h"
 #include "../headers/argparse.hpp"
 int main(int argc,const char** argv) {
+    #ifdef __linux_specific__
+    setenv("PIPEWIRE_RATE", "16000", 0);
+    setenv("PULSE_RATE", "16000", 0);
+    #endif
+
     try
     {
         argparse::ArgumentParser program("conversationClient", "1.0");
@@ -29,14 +38,17 @@ int main(int argc,const char** argv) {
         int noChannels = program.get<int>("-noChannels");
         int eoSentenceTh = program.get<int>("-eoSentenceTh");
 
+        ConversationBot::initLogging();
         std::shared_ptr<AudioHandler> handler = std::make_shared<AudioHandler>(noChannels,0,sr,512,noiseThreshold,eoSentenceTh);
         ConversationClient::ServerInfo info{port,ip};
         std::shared_ptr<ConversationClient> client = std::make_shared<ConversationClient>(info);
         ConversationBot bot(handler,client);
+        spdlog::info("Initialization complete");
         bot.run();
     } catch (std::exception& e)
     {
-        std::cout << "Exception thrown: " << e.what() << std::endl;
+        std::cout << "Exception occured: " << e.what() << std::endl;
+        spdlog::error("Exception occured exiting because {}",e.what());
         std::exit(EXIT_FAILURE);
     }
     std::exit(EXIT_SUCCESS);

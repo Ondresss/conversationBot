@@ -5,8 +5,18 @@
 #include "../headers/AudioHandler.h"
 
 #include "../headers/SilenceFilter.h"
+#include <cstdlib>
+#include <iostream>
+#include <spdlog/spdlog.h>
 
-AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames, double noiseThreshold,int endSentenceThreshold) {
+#define SHOW_ERROR(text)  spdlog::error(text); \
+                            std::cerr << text ;
+
+AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsigned int sampleRate, unsigned int bufferFrames, double noiseThreshold,int endSentenceThreshold) : endSentenceThreshold(endSentenceThreshold),
+        bufferFrames(bufferFrames),
+        sampleRate(sampleRate),
+        noiseThreshold(noiseThreshold) {
+
     this->loadDeviceIds();
 
     unsigned int defaultId = this->audio.getDefaultInputDevice();
@@ -15,15 +25,8 @@ AudioHandler::AudioHandler(unsigned int noChannels,unsigned int firstChanel,unsi
         throw std::runtime_error("Could not find sound devices");
     }
 
-    std::cout << "DEBUG: Default Input Device ID: " << defaultId << std::endl;
-    this->endSentenceThreshold = endSentenceThreshold;
-    this->parameters.deviceId = defaultId;
-    this->parameters.nChannels = noChannels;
-    this->parameters.firstChannel = firstChanel;
-
-    this->bufferFrames = bufferFrames;
-    this->sampleRate = sampleRate;
-    this->noiseThreshold = noiseThreshold;
+    spdlog::info("Default input devide id {}",defaultId);
+    this->parameters = {.deviceId = defaultId,.nChannels = noChannels,.firstChannel = firstChanel};
     this->init();
 }
 
@@ -61,7 +64,7 @@ int AudioHandler::recordCallback(void* outputBuffer, void* inputBuffer, unsigned
     RtAudioStreamStatus status, void* userData) {
     auto handler = static_cast<AudioHandler*>(userData);
     if ( status ) {
-        std::cout << "Stream over/underflow detected." << std::endl;
+        spdlog::warn("Record overflow/underflow detected");
         return 1;
     }
     auto samples = static_cast<float*>(inputBuffer);
@@ -135,8 +138,7 @@ void AudioHandler::startRecording() {
        this->audio.startStream();
     } catch( const std::exception& e )
     {
-        std::cerr << "Error when starting audio stream." << std::endl;
-        std::cerr << e.what() << std::endl;
+        SHOW_ERROR("Could not start audo stream " + std::string(e.what()));
         std::exit(EXIT_FAILURE);
     }
 
@@ -146,10 +148,10 @@ void AudioHandler::init() {
     try {
         this->audio.openStream(nullptr,&this->parameters,
     RTAUDIO_FLOAT32,this->sampleRate,&this->bufferFrames,&AudioHandler::recordCallback,this);
+        spdlog::info("RtAudio stream opened. Requested 512 frames, system allocated: {}", this->bufferFrames);
         this->filters.push_back(std::make_shared<SilenceFilter>(this->noiseThreshold));
     } catch( const std::exception& e ){
-        std::cerr << "Error when initializing audio stream." << std::endl;
-        std::cerr << e.what() << std::endl;
+        SHOW_ERROR("Could not initialize audio handler " + std::string(e.what()));
         std::exit(EXIT_FAILURE);
     }
 }
@@ -174,7 +176,7 @@ void AudioHandler::loadDeviceIds() {
     std::vector<unsigned int> ids = audio.getDeviceIds();
 
     if (ids.empty()) {
-        std::cerr << "Could not find any sound devices" << std::endl;
+        SHOW_ERROR("Could not find any sound devices");
         return;
     }
 
@@ -182,9 +184,7 @@ void AudioHandler::loadDeviceIds() {
         try {
             RtAudio::DeviceInfo info = audio.getDeviceInfo(id);
             if (info.inputChannels > 0) {
-                std::cout << "Found microphone - ID: " << id << " Name: " << info.name << std::endl;
                 this->devices.emplace_back(id,info);
-
             }
         } catch (const std::exception& e) {
             continue;
@@ -209,9 +209,10 @@ void AudioHandler::startPlayback() {
         }
 
         this->playbackAudio.startStream();
-        std::cout << "INFO: Playback started at 22050Hz" << std::endl;
+        spdlog::info("INFO: Playback started at 22050Hz");
     } catch (const std::exception& e) {
-        std::cerr << "void AudioHandler::startPlayback() : " << e.what() << std::endl;
+        SHOW_ERROR("Could not start playback: " + std::string(e.what()));
+        std::exit(EXIT_FAILURE);
     }
 
 }

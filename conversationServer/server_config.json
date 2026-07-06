@@ -2,8 +2,8 @@
   "STT": {
     "active_model": "senseVoice",
     "senseVoice": {
-      "model_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/model.int8.onnx",
-      "tokens_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/tokens.txt",
+      "model_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/senseVoice/model.onnx",
+      "tokens_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/senseVoice/tokens.txt",
       "language": "en"
     },
     "zipformer": {
@@ -21,13 +21,11 @@
   },
   "llm": {
     "port": 8080,
-    "bin": "/home/andrew/llama.cpp/build/bin/llama-server",
-    "instruct": "/home/andrew/llama.cpp/build/bin/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
     "lang": "en"
   },
   "tts": {
     "lang": "en",
-    "model_path_en": "/home/andrew/conversationBot/conversationServer/ttsModels/en_US-lessac-medium.onnx",
+    "model_path_en": "/home/andrew/conversationBot/conversationServer/ttsModels/en_US-amy-medium.onnx",
     "model_path_cs": "/home/andrew/conversationBot/conversationServer/ttsModels/cs_CZ-jirka-medium.onnx"
   },
   "info": {
@@ -35,8 +33,8 @@
     "ip": "0.0.0.0"
   },
   "wakeWord": {
-      "state": true,
-      "expireTime": 120,
-      "word": "hello"
+    "state": true,
+    "expireTime": 120,
+    "word": "hello"
   }
 }

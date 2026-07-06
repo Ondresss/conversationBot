@@ -1,0 +1,5 @@
+build/
+sherpaModels/
+ttsModels/
+log.txt
+database.db

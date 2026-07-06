@@ -7,14 +7,14 @@
 void TextToSpeechConverter::convertTextToSpeech(const std::string& textToConvert) {
     this->outputBuffer.clear();
 
-    boost::process::opstream processStdin;
-    boost::process::ipstream processStdout;
+    boost::process::v1::opstream processStdin;
+    boost::process::v1::ipstream processStdout;
 
-    boost::process::child ttsProcess(boost::process::search_path("piper"),
+    boost::process::v1::child ttsProcess(boost::process::v1::search_path("piper"),
                                     "--model", this->params.modelPath,
                                     "--output_raw",
-                                    boost::process::std_in < processStdin,
-                                    boost::process::std_out > processStdout);
+                                    boost::process::v1::std_in < processStdin,
+                                    boost::process::v1::std_out > processStdout);
 
     processStdin << textToConvert << std::endl;
     processStdin.pipe().close();

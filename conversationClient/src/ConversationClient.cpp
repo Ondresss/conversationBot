@@ -3,6 +3,7 @@
 //
 #include  "../headers/ConversationClient.h"
 
+#include <spdlog/spdlog.h>
 #include <unistd.h>
 
 #include "../headers/AudioPacket.h"
@@ -10,12 +11,14 @@
 void ConversationClient::init() {
     this->fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) throw std::runtime_error("Error creating socket\n");
+    spdlog::debug("TCP audio socket intiliazed\n");
     std::memset(&this->servAddr,0 ,sizeof(struct sockaddr_in));
     this->servAddr.sin_family = AF_INET;
     const int res = inet_pton(AF_INET, this->serverInfo.ip.c_str(), &this->servAddr.sin_addr);
     if (res == 0) throw std::runtime_error("Invalid IPv4 address\n");
     if (res == -1) throw std::runtime_error("Error while converting IPv4 string to AF_INET\n");
     this->servAddr.sin_port = htons(this->serverInfo.port);
+    spdlog::info("Server address for connection is: {} with port {}",this->serverInfo.ip,this->serverInfo.port);
 }
 
 
@@ -23,12 +26,13 @@ void ConversationClient::connectToServer() {
     if (connect(this->fd, reinterpret_cast<struct sockaddr*>(&this->servAddr), sizeof(this->servAddr)) != 0) {
         throw std::runtime_error("ConversationClient::connectToServer(): connection with the server failed...\n");
     }
-    std::cout << "ConversationClient::connectToServer(): Connected to the server" << std::endl;
+    spdlog::info("Connected to the server with TCP audio socket");
 
 }
 
 void ConversationClient::disconnectFromServer() const {
     close(this->fd);
+    spdlog::warn("Disconnected from the server");
 }
 
 void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
@@ -45,7 +49,9 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
         headerLeft -= sent;
         headerPtr += sent;
     }
+    spdlog::debug("Sent tcp audio header -> [status,length,id] = [{},{},{}]",clientHeader.status,clientHeader.packetLen,clientHeader.id);
     if (!audioPacket.samples.empty()) {
+        spdlog::debug("TCP audio packet wasnt empty");
         const char* dataPtr = reinterpret_cast<const char*>(audioPacket.samples.data());
         ssize_t dataLeft = audioPacket.samples.size() * sizeof(float);
 
@@ -58,11 +64,12 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
             dataLeft -= sent;
             dataPtr += sent;
         }
+        spdlog::debug("Sent nonempty TCP packet");
     }
 }
 
  std::tuple<const std::vector<std::int16_t>&,uint32_t> ConversationClient::getResponseFromServer() {
-    std::cout << "Reading response from the server....\n";
+    spdlog::debug("Reading response from the server");
     ServerHeader serverHeader{};
     auto serverHeaderPtr = reinterpret_cast<char*>(&serverHeader);
     ssize_t headerBytesLeft = sizeof(ServerHeader);
@@ -76,6 +83,7 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
 
     this->responseBuffer.resize(numSamples);
 
+    spdlog::debug("Server header read [totalLength,status]=[{},{}]",serverHeader.totalLen,serverHeader.status);
     char* dataPtr = reinterpret_cast<char*>(this->responseBuffer.data());
     ssize_t bytesLeft = serverHeader.totalLen;
     while (bytesLeft > 0) {
@@ -84,6 +92,6 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
         bytesLeft -= bytesRead;
         dataPtr += bytesRead;
     }
-    std::cout << "INFO: read response from the server\n";
+    spdlog::debug("Read response from the server");
     return {this->responseBuffer,serverHeader.status};
 }

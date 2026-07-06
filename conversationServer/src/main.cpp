@@ -12,7 +12,7 @@
 int main(int argc,const char** argv) {
     try {
 
-        spdlog::set_level(spdlog::level::debug);
+        ConversationServer::initLogging();
         std::shared_ptr<ConversationServer> server = ConversationServer::loadFromConfig("../server_config.json");
         std::thread logicThread([&]() {
             server->run();

@@ -5,6 +5,8 @@
 #include "../headers/ConversationServer.h"
 
 #include "../headers/ClientHeader.h"
+#include <cstdlib>
+#include <iostream>
 
 
 
@@ -230,10 +232,10 @@ std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std
     }
     if (json.contains("tts")) {
         if (json["tts"].value("lang","en") == "cs") {
-            configParams.modelPath = json["tts"].value("model_path_cs", "");
+            configParams = TextToSpeechConverter::ConfigParams(json["tts"].value("model_path_cs", ""));
             spdlog::info("Loaded Czech TTS model on path {}", configParams.modelPath);
         } else {
-            configParams.modelPath = json["tts"].value("model_path_en", "");
+            configParams = TextToSpeechConverter::ConfigParams(json["tts"].value("model_path_en", ""));
             spdlog::info("Loaded English TTS model on path {}", configParams.modelPath);
         }
     } else {
@@ -291,4 +293,32 @@ bool ConversationServer::handleSession(const std::string& response) {
 void ConversationServer::sendEmptyResponse(std::shared_ptr<Client> client,std::vector<float>& audioBuffer) {
     this->writeResponse(client, {}, ServerStatus::EMPTY_RESPONSE);
     audioBuffer.clear();
+}
+
+
+void ConversationServer::initLogging() {
+    try {
+        spdlog::init_thread_pool(8192, 1);
+
+        auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_st>();
+        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_st>("../log.txt", true);
+
+        std::vector<spdlog::sink_ptr> sinks {console_sink, file_sink};
+
+        auto async_logger = std::make_shared<spdlog::async_logger>(
+            "main",
+            sinks.begin(),
+            sinks.end(),
+            spdlog::thread_pool(),
+            spdlog::async_overflow_policy::block
+        );
+
+        async_logger->set_level(spdlog::level::trace);
+        async_logger->flush_on(spdlog::level::debug);
+        spdlog::set_default_logger(async_logger);
+    } catch (const spdlog::spdlog_ex& ex) {
+        std::cerr << "Failed to initialize logging: " << ex.what() << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+
 }
