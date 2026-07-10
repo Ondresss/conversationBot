@@ -32,6 +32,14 @@ add_executable(conversationServer
         src/LanguageValidator.cpp
         headers/ConversationSession.h
         src/ConversationSession.cpp
+        headers/ImageServer.h
+        src/ImageServer.cpp
+        headers/AbstractServer.h
+        headers/ServerType.h
+        headers/ClientRegistry.h
+        src/ClientRegistry.cpp
+        headers/SharedContext.h
+        headers/ServerInfo.h
 )
 
 target_include_directories(conversationServer PRIVATE

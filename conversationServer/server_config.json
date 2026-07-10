@@ -32,6 +32,14 @@
     "port": 9999,
     "ip": "0.0.0.0"
   },
+  "imageServer": {
+    "port": 9998,
+    "ip": "0.0.0.0",
+    "period": 10,
+    "triggerWord": "see",
+    "noBufferedImages": 3,
+    "compressFormat": "JPEG"
+  },
   "wakeWord": {
     "state": true,
     "expireTime": 120,

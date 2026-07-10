@@ -2,6 +2,7 @@
 // Created by andrew on 4/18/26.
 //
 #include "../headers/ClientLogger.h"
+#include <memory>
 
 ClientLogger& ClientLogger::getInstance() {
     static ClientLogger logger("../database.db","../schema.sql");
@@ -49,8 +50,8 @@ void ClientLogger::insertSpeech(const Client& c, const std::string& question, co
     sqlite3_finalize(stmt);
 }
 
-std::vector<Client> ClientLogger::selectAll() {
-    std::vector<Client> clients;
+std::vector<std::shared_ptr<Client>> ClientLogger::selectAll() {
+    std::vector<std::shared_ptr<Client>> clients;
 
     const char* clientSql = "SELECT id, ip, port FROM client;";
     sqlite3_stmt* clientStmt;
@@ -65,7 +66,7 @@ std::vector<Client> ClientLogger::selectAll() {
         std::string ip = reinterpret_cast<const char*>(sqlite3_column_text(clientStmt, 1));
         int port = sqlite3_column_int(clientStmt, 2);
 
-        Client c(-1, ip, port);
+        Client c(Client::Descriptor{.audioFd = -1, .videoFd = -1}, ip, port);
         c.setID(id);
         const char* historySql = "SELECT question, answer FROM history WHERE client_id = ? ORDER BY created_at ASC;";
         sqlite3_stmt* historyStmt;
@@ -81,7 +82,7 @@ std::vector<Client> ClientLogger::selectAll() {
             sqlite3_finalize(historyStmt);
         }
 
-        clients.push_back(std::move(c));
+        clients.push_back(std::make_shared<Client>(Client::Descriptor{.audioFd = -1, .videoFd = -1}, ip, port));
     }
 
     sqlite3_finalize(clientStmt);

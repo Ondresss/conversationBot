@@ -9,6 +9,28 @@
 #include <iostream>
 
 
+ConversationServer::~ConversationServer() {
+       for (auto& th : this->clientThreads) {
+           if (th.joinable()) {
+               th.join();
+           }
+       }
+}
+
+ConversationServer::ConversationServer(ServerInfo serverInfo,
+       const SpeechToTextConverter::ModelPath& modelPath,
+       std::shared_ptr<LLMGateway> llmGateway_,
+       const TextToSpeechConverter::ConfigParams& ttsParams_,
+       SessionParams sessionParams,
+       std::shared_ptr<SharedContext> context = nullptr) : AbstractServer(serverInfo, context) {
+       this->speechToTextConverter = std::make_unique<SpeechToTextConverter>(modelPath);
+       this->llmGateway = std::move(llmGateway_);
+       this->textToSpeechConverter = std::make_unique<TextToSpeechConverter>(ttsParams_);
+
+       this->sessionParams = sessionParams;
+
+   };
+
 
 void ConversationServer::run() {
     try {
@@ -16,8 +38,8 @@ void ConversationServer::run() {
         while (true) {
             spdlog::info("Waiting for new client....");
             auto client = this->serverSocket->waitForConnection();
+            this->updateClientRegistry(client);
             spdlog::info("New client joined with IP {}",client->getIP());
-            this->clients.push_back(client);
             this->clientThreads.emplace_back(&ConversationServer::handleClient, this,client);
         }
     } catch (std::exception& e){
@@ -30,22 +52,10 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
     spdlog::info("Handling the client......");
     const SherpaOnnxOnlineStream* clientStream = nullptr;
     if (this->speechToTextConverter->isOnline()) clientStream = this->speechToTextConverter->createStream();
-
+    auto clientRegistry = this->context->getClientRegistry();
     std::vector<float> audioBuffer;
     try {
         while (true) {
-            if (!client->getIsConnected()) {
-                close(client->getFd());
-                spdlog::warn("Client {} disconnected",client->getId());
-                {
-                    std::lock_guard<std::mutex> lock(this->clientsMutex);
-                    auto it = std::find(this->clients.begin(), this->clients.end(), client);
-                    if (it != this->clients.end()) {
-                        this->clients.erase(it);
-                    }
-                }
-                break;
-            }
             uint32_t readStatus = 0x0;
             auto currentAudio = this->readAudioFromClient(client,readStatus);
             if (readStatus == 3) {
@@ -82,8 +92,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                     } catch (const std::exception& e) {
                         spdlog::error("ERR: Exception during TTS");
                         spdlog::error("{}",e.what());
-                        close(client->getFd());
-                        client->setDisconnected();
+                        client->disconnect(ServerType::Conversation);
                         spdlog::info("Closed connection with client");
                         return;
                     }
@@ -105,8 +114,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
         spdlog::error("void ConversationServer::handleClient(std::shared_ptr<ServerSocket::Client> client): {}",e.what());
     }
     this->speechToTextConverter->destroyStream(clientStream);
-    client->setDisconnected();
-    close(client->getFd());
+    client->disconnect(ServerType::Conversation);
     spdlog::debug("Stream destroyed");
 }
 std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr<Client>& client,uint32_t& status) {
@@ -115,7 +123,7 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
     char* headerPtr = reinterpret_cast<char*>(&clientHeader);
     ssize_t headerBytesLeft = sizeof(clientHeader);
     while (headerBytesLeft > 0) {
-        ssize_t n = read(client->getFd(), headerPtr, headerBytesLeft);
+        ssize_t n = read(client->getDescriptors().audioFd, headerPtr, headerBytesLeft);
         if (n == 0) throw std::runtime_error("ConversationServer::readAudioFromClient(): Client disconnected while sending header");
         if (n == -1) throw std::runtime_error("ConversationServer::readAudioFromClient(): Error while reading header from client " + std::string(strerror(errno)) );
         headerBytesLeft -= n;
@@ -138,7 +146,7 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
         return {};
     }
     while (dataBytesLeft > 0) {
-        ssize_t n = read(client->getFd(), dataPtr, dataBytesLeft);
+        ssize_t n = read(client->getDescriptors().audioFd, dataPtr, dataBytesLeft);
         if (n <= 0) throw std::runtime_error("ConversationServer::readAudioFromClient(): Client disconnected or error while reading data from client");;
         dataBytesLeft -= n;
         dataPtr += n;
@@ -155,7 +163,7 @@ void ConversationServer::writeResponse(const std::shared_ptr<Client>& client,con
     char* headerPtr = reinterpret_cast<char*>(&header);
     ssize_t headerBytesLeft = sizeof(header);
     while (headerBytesLeft > 0) {
-        ssize_t n = write(client->getFd(), headerPtr, headerBytesLeft);
+        ssize_t n = write(client->getDescriptors().audioFd, headerPtr, headerBytesLeft);
         if (n == 0) throw std::runtime_error("ConversationServer::writeResponse(): Client disconnected while sending header");
         if (n == -1) throw std::runtime_error("ConversationServer::writeResponse(): Error while reading header from client " + std::string(strerror(errno)) );
         headerBytesLeft -= n;
@@ -165,7 +173,7 @@ void ConversationServer::writeResponse(const std::shared_ptr<Client>& client,con
     auto dataPtr = reinterpret_cast<const char*>(soundBytes.data());
     ssize_t dataBytesLeft = header.totalLen;
     while (dataBytesLeft > 0) {
-        ssize_t n = write(client->getFd(), dataPtr, dataBytesLeft);
+        ssize_t n = write(client->getDescriptors().audioFd, dataPtr, dataBytesLeft);
         if (n <= 0) throw std::runtime_error("ConversationServer::writeResponse(): Client disconnected while sending data");
         dataBytesLeft -= n;
         dataPtr += n;
@@ -252,32 +260,32 @@ std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std
         spdlog::error("ConversationServer::loadFromConfig(): Missing server info");
         std::exit(EXIT_FAILURE);
     }
-    WakeWordParams wakeWordParams;
+    SessionParams sessionParams{};
     if (json.contains("wakeWord")) {
-        wakeWordParams.useWakeWord = json["wakeWord"].value("state", false);
-        wakeWordParams.sessionExpireTime  = json["wakeWord"].value("expireTime", 0);
-        wakeWordParams.word = json["wakeWord"].value("word", "andrew");
+        sessionParams.useWakeWord = json["wakeWord"].value("state", false);
+        sessionParams.sessionExpireTime  = json["wakeWord"].value("expireTime", 0);
+        sessionParams.word = json["wakeWord"].value("word", "andrew");
 
-        spdlog::info("Wake word usage: {}", wakeWordParams.useWakeWord ? "true" : "false");
-        if (wakeWordParams.useWakeWord) {
-            spdlog::info("Using wake word: {}",wakeWordParams.word);
-            spdlog::info("Wake word session time: {}", wakeWordParams.sessionExpireTime);
+        spdlog::info("Wake word usage: {}", sessionParams.useWakeWord ? "true" : "false");
+        if (sessionParams.useWakeWord) {
+            spdlog::info("Using wake word: {}", sessionParams.word);
+            spdlog::info("Wake word session time: {}", sessionParams.sessionExpireTime);
         }
     } else {
         spdlog::error("ConversationServer::loadFromConfig(): Missing wake word info");
-        wakeWordParams.useWakeWord = false;
+        sessionParams.useWakeWord = false;
     }
 
     spdlog::info("Server attributes loaded successfuly");
-
-    return std::make_shared<ConversationServer>(serverInfo,modelPath,llmGateway,configParams,wakeWordParams);
+    serverInfo.type = ServerType::Conversation;
+    return std::make_shared<ConversationServer>(serverInfo,modelPath,llmGateway,configParams,sessionParams);
 
 }
 
 
 bool ConversationServer::handleSession(const std::string& response) {
     if (this->conversationSession) {
-        std::regex ignoreRegex(this->wordParams.word, std::regex_constants::icase);
+        std::regex ignoreRegex(this->sessionParams.word, std::regex_constants::icase);
         bool hasKeyword = std::regex_search(response, ignoreRegex);
         bool isWindowOpen = this->conversationSession->isSessionActive();
 

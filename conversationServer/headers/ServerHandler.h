@@ -2,17 +2,19 @@
 // Created by andrew on 4/18/26.
 //
 #pragma once
+#include <memory>
 #include <pistache/http.h>
 #include <pistache/router.h>
 #include <pistache/endpoint.h>
 #include  "ConversationServer.h"
+#include "SharedContext.h"
 class ServerHandler : public Pistache::Http::Handler {
 public:
 
     std::shared_ptr<Pistache::Tcp::Handler> clone() const override {
-        return std::make_shared<ServerHandler>(this->server);
+        return std::make_shared<ServerHandler>(this->server, this->context);
     }
-    ServerHandler(std::shared_ptr<ConversationServer> server_) : server(std::move(server_)) {
+    ServerHandler(std::shared_ptr<ConversationServer> server_,std::shared_ptr<SharedContext> context_) : server(std::move(server_)), context(std::move(context_)) {
         this->setupRestRoutes();
         spdlog::debug("ServerHandler created");
     }
@@ -20,7 +22,8 @@ public:
     void setupRestRoutes();
     void setupCors(Pistache::Http::ResponseWriter& response);
 
-    void getClients(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void getClientsAll(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void getClientsActiveAll(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
     void disconnectClient(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
 
     std::shared_ptr<Pistache::Rest::Router> getRouter() {
@@ -29,4 +32,5 @@ public:
 private:
     Pistache::Rest::Router router;
     std::shared_ptr<ConversationServer> server;
+    std::shared_ptr<SharedContext> context = nullptr;
 };

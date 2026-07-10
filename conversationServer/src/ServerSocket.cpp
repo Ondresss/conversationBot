@@ -36,7 +36,6 @@ std::shared_ptr<Client> ServerSocket::waitForConnection() {
     if (inet_ntop(AF_INET, &(this->cliAddr.sin_addr), ipStr, INET_ADDRSTRLEN)) {
         clientSocket->setIP(std::string(ipStr));
     }
-    clientSocket->setFd(currentClientFd);
     clientSocket->setPort(ntohs(this->cliAddr.sin_port));
     return clientSocket;
 }
