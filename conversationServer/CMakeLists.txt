@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 project(conversationServer)
 
 set(CMAKE_CXX_STANDARD 26)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(nlohmann_json 3.10 REQUIRED)
 find_package(CURL REQUIRED)
@@ -9,6 +10,7 @@ find_package(Boost REQUIRED COMPONENTS filesystem)
 find_package(spdlog REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(SQLite3 REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui imgcodecs)
 
 add_executable(conversationServer
         src/main.cpp
@@ -40,6 +42,9 @@ add_executable(conversationServer
         src/ClientRegistry.cpp
         headers/SharedContext.h
         headers/ServerInfo.h
+        src/AbstractServer.cpp
+        src/ServerManager.cpp
+        headers/ServerManager.h
 )
 
 target_include_directories(conversationServer PRIVATE
@@ -58,4 +63,5 @@ target_link_libraries(conversationServer PRIVATE
         spdlog::spdlog
         pistache
         SQLite::SQLite3
+        PRIVATE ${OpenCV_LIBS}
 )

@@ -32,7 +32,11 @@ public:
     [[nodiscard]] const Descriptor& getDescriptors() const { return descriptors; }
     [[nodiscard]] const std::unique_ptr<ConversationSession>& getSession() const { return session; }
 
-    void initializeSession();
+    void initializeSession(int secs);
+    [[nodiscard]] bool hasInitializedSession() const { return session != nullptr; }
+    [[nodiscard]] bool hasActiveSession() const { return session != nullptr && session->isSessionActive(); }
+    void refreshSession() { if (session) session->refreshSession(); }
+
     void disconnect(ServerType type);
     void setIP(const std::string& ip) { this->clientIP = ip; }
     void setPort(int port_) { this->port = port_; }

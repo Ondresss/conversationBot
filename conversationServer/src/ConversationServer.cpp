@@ -7,15 +7,9 @@
 #include "../headers/ClientHeader.h"
 #include <cstdlib>
 #include <iostream>
+#include <memory>
+#include <spdlog/spdlog.h>
 
-
-ConversationServer::~ConversationServer() {
-       for (auto& th : this->clientThreads) {
-           if (th.joinable()) {
-               th.join();
-           }
-       }
-}
 
 ConversationServer::ConversationServer(ServerInfo serverInfo,
        const SpeechToTextConverter::ModelPath& modelPath,
@@ -36,20 +30,22 @@ void ConversationServer::run() {
     try {
         if (!this->serverSocket) throw std::runtime_error("ConversationServer::run(): serverSocket is null");
         while (true) {
-            spdlog::info("Waiting for new client....");
+            spdlog::info("ConversationServer: Waiting for new client....");
             auto client = this->serverSocket->waitForConnection();
+            this->authenticateClient(client);
             this->updateClientRegistry(client);
-            spdlog::info("New client joined with IP {}",client->getIP());
+            client->initializeSession(this->sessionParams.sessionExpireTime);
+            spdlog::info("ConversationServer: New client joined with IP {}",client->getIP());
             this->clientThreads.emplace_back(&ConversationServer::handleClient, this,client);
         }
     } catch (std::exception& e){
-        std::cerr << e.what() << std::endl;
+        spdlog::error("ConversationServer::run() -> Application failed: " + std::string(e.what()));
         std::exit(EXIT_FAILURE);
     }
 }
 
 void ConversationServer::handleClient(std::shared_ptr<Client> client) {
-    spdlog::info("Handling the client......");
+    spdlog::info("ConversationServer: Handling the client......");
     const SherpaOnnxOnlineStream* clientStream = nullptr;
     if (this->speechToTextConverter->isOnline()) clientStream = this->speechToTextConverter->createStream();
     auto clientRegistry = this->context->getClientRegistry();
@@ -70,7 +66,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                 spdlog::info("Audio processed");
                 if (!LanguageValidator::isJunkOrEmpty(currentText)) {
                     spdlog::info("Input Text: {}", currentText);
-                    bool passSession = this->handleSession(currentText);
+                    bool passSession = this->handleSession(client,currentText);
                     if (!passSession) {
                         spdlog::info("Ignoring response due to invalid session. Question was: '{}'", currentText);
                         this->sendEmptyResponse(client,audioBuffer);
@@ -119,7 +115,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
 }
 std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr<Client>& client,uint32_t& status) {
     std::vector<float> fullAudio;
-    ClientHeader clientHeader{};
+    ClientConversationHeader clientHeader{};
     char* headerPtr = reinterpret_cast<char*>(&clientHeader);
     ssize_t headerBytesLeft = sizeof(clientHeader);
     while (headerBytesLeft > 0) {
@@ -131,13 +127,6 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
     }
     size_t numSamples = clientHeader.packetLen / sizeof(float);
     status = clientHeader.status;
-    if (client->getId() == 0x0) {
-        client->setID(clientHeader.id);
-        spdlog::info("Client identifier is: {}", client->getId());
-        auto logger = ClientLogger::getInstance();
-        logger.insert(*client);
-        spdlog::info("Client inserted to DB!");
-    }
 
     std::vector<float> packetData(numSamples);
     char* dataPtr = reinterpret_cast<char*>(packetData.data());
@@ -283,50 +272,22 @@ std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std
 }
 
 
-bool ConversationServer::handleSession(const std::string& response) {
-    if (this->conversationSession) {
+bool ConversationServer::handleSession(std::shared_ptr<Client> client,const std::string& response) {
+    if (client->hasInitializedSession()) {
         std::regex ignoreRegex(this->sessionParams.word, std::regex_constants::icase);
         bool hasKeyword = std::regex_search(response, ignoreRegex);
-        bool isWindowOpen = this->conversationSession->isSessionActive();
-
+        bool isWindowOpen = client->hasActiveSession();
         if (hasKeyword || isWindowOpen) {
-            this->conversationSession->refreshSession();
+            client->refreshSession();
+            spdlog::info("Refreshing session for client");
             return true;
         }
         return false;
-    }
+    } else spdlog::warn("Client doesnt have initialized session");
     return true;
 }
 
 void ConversationServer::sendEmptyResponse(std::shared_ptr<Client> client,std::vector<float>& audioBuffer) {
     this->writeResponse(client, {}, ServerStatus::EMPTY_RESPONSE);
     audioBuffer.clear();
-}
-
-
-void ConversationServer::initLogging() {
-    try {
-        spdlog::init_thread_pool(8192, 1);
-
-        auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_st>();
-        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_st>("../log.txt", true);
-
-        std::vector<spdlog::sink_ptr> sinks {console_sink, file_sink};
-
-        auto async_logger = std::make_shared<spdlog::async_logger>(
-            "main",
-            sinks.begin(),
-            sinks.end(),
-            spdlog::thread_pool(),
-            spdlog::async_overflow_policy::block
-        );
-
-        async_logger->set_level(spdlog::level::trace);
-        async_logger->flush_on(spdlog::level::debug);
-        spdlog::set_default_logger(async_logger);
-    } catch (const spdlog::spdlog_ex& ex) {
-        std::cerr << "Failed to initialize logging: " << ex.what() << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-
 }

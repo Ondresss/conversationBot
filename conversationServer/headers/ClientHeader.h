@@ -3,9 +3,8 @@
 #pragma once
 #include <cstdint>
 #pragma pack(push, 1)
-struct ClientHeader {
+struct ClientConversationHeader {
     uint32_t status = 0x0;
     uint32_t packetLen = 512;
-    uint64_t id = 0x0;
 };
 #pragma pack(pop)

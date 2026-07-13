@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include "ServerType.h"
 #include <unistd.h>
+#include <spdlog/spdlog.h>
 class ClientRegistry {
 public:
     void addClient(std::shared_ptr<Client> client);

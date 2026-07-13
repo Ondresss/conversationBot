@@ -6,6 +6,15 @@
 #include "../headers/ServerType.h"
 #include <mutex>
 #include <shared_mutex>
+#include <spdlog/spdlog.h>
+
+void Client::initializeSession(int secs) {
+    if (session) {
+        spdlog::warn("Trying to initalize already initialized session");
+        session->refreshSession();
+    }
+    else session = std::make_unique<ConversationSession>(secs);
+}
 
 void Client::disconnect(ServerType type) {
     std::unique_lock<std::shared_mutex> lock(this->mutex);

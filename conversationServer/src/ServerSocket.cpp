@@ -2,8 +2,6 @@
 // Created by andrew on 07.03.26.
 //
 #include "../headers/ServerSocket.h"
-
-#include <iostream>
 #include <spdlog/spdlog.h>
 
 void ServerSocket::init() {
@@ -23,6 +21,7 @@ void ServerSocket::init() {
         throw std::runtime_error("ServerSocket::init(): Listen failed");
     }
     spdlog::info("Server socket started on IP and PORT: {}, {}",this->serverInfo.ip,this->serverInfo.port);
+    spdlog::info("Started server of type: {}", toStringServerType(this->serverInfo.type));
 }
 
 std::shared_ptr<Client> ServerSocket::waitForConnection() {
