@@ -48,9 +48,9 @@ void ImageServer::run() {
             spdlog::info("Image server: Waiting for new client....");
             auto client = this->serverSocket->waitForConnection();
             this->authenticateClient(client);
-            this->updateClientRegistry(client);
-            spdlog::info("Image server: New client connected with IP {}",client->getIP());
-            this->handleClient(client);
+            auto updatedClient = this->updateClientRegistry(client);
+            spdlog::info("Image server: New client connected with IP {}",updatedClient->getIP());
+            this->clientThreads.emplace_back(&ImageServer::handleClient, this, updatedClient);
         }
         } catch (std::exception& e){
             spdlog::error("ImageServer::run() -> Application failed: " + std::string(e.what()));

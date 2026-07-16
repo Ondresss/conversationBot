@@ -12,6 +12,10 @@
 #include <iostream>
 #include "AudioPacket.h"
 #include "ClientIdentifier.h"
+#include "ServerAuthResponseHeader.h"
+#include "ServerConversationHeader.h"
+#include "ClientAuthHeader.h"
+#include "ClientConversationHeader.h"
 
 class ConversationClient {
 public:
@@ -19,22 +23,14 @@ public:
         int port = -1;
         std::string ip;
     };
-    #pragma pack(push, 1)
-    struct ClientHeader {
-        uint32_t status = 0x0;
-        uint32_t packetLen = 512;
-        uint64_t id = 0x0;
-    };
-    struct ServerHeader {
-        uint32_t status = 0x0;
-        uint32_t totalLen = 512;
-    };
-    #pragma pack(pop)
+
     explicit ConversationClient(ServerInfo serverInfo) : serverInfo(std::move(serverInfo)) {
         this->init();
         this->id = ClientIdentifier::getIdentifier();
     };
     void connectToServer();
+    void sendAuthRequest();
+    bool authenticationSuccessful() const;
     void disconnectFromServer() const;
     void sendAudioPacket(const AudioPacket& audioPacket);
     std::tuple<const std::vector<std::int16_t>&,uint32_t> getResponseFromServer();

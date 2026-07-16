@@ -20,6 +20,7 @@
 #include "../headers/ClientLogger.h"
 #include <regex>
 #include  "ConversationSession.h"
+#include "ClientConversationHeader.h"
 #include "AbstractServer.h"
 class ConversationServer : public AbstractServer {
 public:

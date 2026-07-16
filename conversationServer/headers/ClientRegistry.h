@@ -9,7 +9,7 @@
 #include <spdlog/spdlog.h>
 class ClientRegistry {
 public:
-    void addClient(std::shared_ptr<Client> client);
+    std::shared_ptr<Client> addClient(std::shared_ptr<Client> client);
     void removeClient(std::shared_ptr<Client> client);
     void disconnectClient(std::size_t id, ServerType type);
     void forEachClient(const std::function<void(const std::shared_ptr<Client>&)>& func);

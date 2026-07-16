@@ -36,5 +36,10 @@ std::shared_ptr<Client> ServerSocket::waitForConnection() {
         clientSocket->setIP(std::string(ipStr));
     }
     clientSocket->setPort(ntohs(this->cliAddr.sin_port));
+    if(this->serverInfo.type == ServerType::Conversation) {
+        clientSocket->setAudioServerDescriptor(currentClientFd);
+    } else if(this->serverInfo.type == ServerType::Image) {
+        clientSocket->setImageServerDescriptor(currentClientFd);
+    }
     return clientSocket;
 }

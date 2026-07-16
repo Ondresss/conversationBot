@@ -18,13 +18,14 @@
 int main(int argc,const char** argv) {
     try {
 
-        std::shared_ptr<SharedContext> context = std::make_shared<SharedContext>();
         AbstractServer::initLogging();
+        std::shared_ptr<SharedContext> context = std::make_shared<SharedContext>();
         std::shared_ptr<ConversationServer> server = ConversationServer::loadFromConfig("../server_config.json");
         std::shared_ptr<ImageServer> imageServer = ImageServer::loadFromConfig("../server_config.json");
         std::vector<std::shared_ptr<AbstractServer>> servers {server, imageServer};
         std::unique_ptr<ServerManager> serverManager = std::make_unique<ServerManager>(servers);
         serverManager->runAll();
+        serverManager->setSharedContextAll(context);
         Pistache::Address addr(Pistache::Ipv4::any(), Pistache::Port(8081));
         auto opts = Pistache::Http::Endpoint::options().threads(1);
         auto service = std::make_shared<ServerHandler>(server, context);

@@ -4,7 +4,7 @@
 
 #include "../headers/ConversationServer.h"
 
-#include "../headers/ClientHeader.h"
+#include "../headers/ClientConversationHeader.h"
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -30,13 +30,17 @@ void ConversationServer::run() {
     try {
         if (!this->serverSocket) throw std::runtime_error("ConversationServer::run(): serverSocket is null");
         while (true) {
-            spdlog::info("ConversationServer: Waiting for new client....");
+            spdlog::info("ConversationServer -> run(): Waiting for new client....");
             auto client = this->serverSocket->waitForConnection();
+            spdlog::info("ConversationServer -> run(): New client connected with IP {}",client->getIP());
             this->authenticateClient(client);
-            this->updateClientRegistry(client);
-            client->initializeSession(this->sessionParams.sessionExpireTime);
-            spdlog::info("ConversationServer: New client joined with IP {}",client->getIP());
-            this->clientThreads.emplace_back(&ConversationServer::handleClient, this,client);
+            spdlog::info("ConversationServer -> run(): Client authenticated successfully");
+            auto updatedClient = this->updateClientRegistry(client);
+            spdlog::info("ConversationServer -> run(): Client updated fully");
+            updatedClient->initializeSession(this->sessionParams.sessionExpireTime);
+            spdlog::info("ConversationServer -> run(): Session initialized");
+            spdlog::info("ConversationServer -> run(): Handling client");
+            this->clientThreads.emplace_back(&ConversationServer::handleClient, this,updatedClient);
         }
     } catch (std::exception& e){
         spdlog::error("ConversationServer::run() -> Application failed: " + std::string(e.what()));
@@ -111,6 +115,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
     }
     this->speechToTextConverter->destroyStream(clientStream);
     client->disconnect(ServerType::Conversation);
+    clientRegistry->removeClient(client);
     spdlog::debug("Stream destroyed");
 }
 std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr<Client>& client,uint32_t& status) {

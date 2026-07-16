@@ -7,11 +7,13 @@
 #include <string>
 #include <filesystem>
 #include <fstream>
-namespace fs = std::filesystem;
+#include <spdlog/spdlog.h>
 class ClientIdentifier {
 public:
     static uint64_t getIdentifier();
 private:
     static std::string getFirstAvailableMac();
     static std::string getMacAddress(const std::string& interface = "eth0");
+    static std::string idFilePath;
+    static uint64_t getNewIdentifier();
 };

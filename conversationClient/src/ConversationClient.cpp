@@ -4,6 +4,7 @@
 #include  "../headers/ConversationClient.h"
 
 #include <spdlog/spdlog.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "../headers/AudioPacket.h"
@@ -21,25 +22,53 @@ void ConversationClient::init() {
     spdlog::info("Server address for connection is: {} with port {}",this->serverInfo.ip,this->serverInfo.port);
 }
 
+void ConversationClient::sendAuthRequest() {
+    ClientAuthHeader authHeader{};
+    authHeader.id = this->id;
+    ssize_t totaBytes = sizeof(ClientAuthHeader);
+    ssize_t bytesSent = 0;
+    while (bytesSent < totaBytes) {
+        ssize_t res = send(this->fd, &authHeader + bytesSent, totaBytes - bytesSent, 0);
+        if (res == -1) throw std::runtime_error("Error sending auth request\n");
+        bytesSent += res;
+    }
+    spdlog::info("Auth request sent to the server with id {}", this->id);
+}
+
+
+bool ConversationClient::authenticationSuccessful() const {
+    ServerAuthResponseHeader header{};
+    ssize_t totalBytes = sizeof(ServerAuthResponseHeader);
+    ssize_t bytesReceived = 0;
+    while (bytesReceived < totalBytes) {
+        ssize_t res = recv(this->fd, &header + bytesReceived, totalBytes - bytesReceived, 0);
+        if (res == -1) throw std::runtime_error("Error receiving auth response\n");
+        bytesReceived += res;
+    }
+    return header.status == ServerAuthStatus::Success;
+}
 
 void ConversationClient::connectToServer() {
     if (connect(this->fd, reinterpret_cast<struct sockaddr*>(&this->servAddr), sizeof(this->servAddr)) != 0) {
         throw std::runtime_error("ConversationClient::connectToServer(): connection with the server failed...\n");
     }
     spdlog::info("Connected to the server with TCP audio socket");
-
+    this->id = ClientIdentifier::getIdentifier();
+    this->sendAuthRequest();
+    if(!this->authenticationSuccessful()) {
+        spdlog::info("Authentication failed");
+        throw std::runtime_error("Authentication failed");
+    }
 }
-
 void ConversationClient::disconnectFromServer() const {
     close(this->fd);
     spdlog::warn("Disconnected from the server");
 }
 
 void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
-    ClientHeader clientHeader{};
+    ClientConversationHeader clientHeader{};
     clientHeader.status = static_cast<uint32_t>(audioPacket.type);
     clientHeader.packetLen = audioPacket.samples.size() * sizeof(float);
-    clientHeader.id = this->id;
     const char* headerPtr = reinterpret_cast<const char*>(&clientHeader);
     ssize_t headerLeft = sizeof(clientHeader);
 
@@ -49,7 +78,7 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
         headerLeft -= sent;
         headerPtr += sent;
     }
-    spdlog::debug("Sent tcp audio header -> [status,length,id] = [{},{},{}]",clientHeader.status,clientHeader.packetLen,clientHeader.id);
+    spdlog::debug("Sent tcp audio header -> [status,length] = [{},{}]",clientHeader.status,clientHeader.packetLen);
     if (!audioPacket.samples.empty()) {
         spdlog::debug("TCP audio packet wasnt empty");
         const char* dataPtr = reinterpret_cast<const char*>(audioPacket.samples.data());
@@ -70,9 +99,9 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
 
  std::tuple<const std::vector<std::int16_t>&,uint32_t> ConversationClient::getResponseFromServer() {
     spdlog::debug("Reading response from the server");
-    ServerHeader serverHeader{};
+    ServerConversationHeader serverHeader{};
     auto serverHeaderPtr = reinterpret_cast<char*>(&serverHeader);
-    ssize_t headerBytesLeft = sizeof(ServerHeader);
+    ssize_t headerBytesLeft = sizeof(ServerConversationHeader);
     while (headerBytesLeft > 0) {
         const ssize_t headerBytesRead = read(this->fd, serverHeaderPtr, headerBytesLeft);
         if (headerBytesRead == -1) throw std::runtime_error("ConversationClient::getResponseFromServer(): Error reading from the socket\n");

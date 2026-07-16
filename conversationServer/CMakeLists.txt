@@ -45,6 +45,8 @@ add_executable(conversationServer
         src/AbstractServer.cpp
         src/ServerManager.cpp
         headers/ServerManager.h
+        headers/ClientConversationHeader.h
+        headers/ServerAuthResponseHeader.h
 )
 
 target_include_directories(conversationServer PRIVATE

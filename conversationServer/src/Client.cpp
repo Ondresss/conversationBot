@@ -18,16 +18,19 @@ void Client::initializeSession(int secs) {
 
 void Client::disconnect(ServerType type) {
     std::unique_lock<std::shared_mutex> lock(this->mutex);
+    spdlog::debug("Client::disconnect -> Lock acquired");
     this->isConnected = false;
     switch (type) {
         case ServerType::Conversation:
             if(this->descriptors.audioFd == -1) throw std::runtime_error("Client already disconnected from audio server");
             this->descriptors.audioFd = -1;
+            spdlog::warn("Client with id {} disconnected from audio server", this->id);
             break;
         case ServerType::Image:
             if(this->descriptors.videoFd == -1) throw std::runtime_error("Client already disconnected from image server");
             close(this->descriptors.videoFd);
             this->descriptors.videoFd = -1;
+            spdlog::warn("Client with id {} disconnected from image server", this->id);
             break;
         default:
             throw std::runtime_error("Invalid server type");

@@ -1,4 +1,6 @@
 #include "../headers/AbstractServer.h"
+#include <cstdint>
+#include <sys/types.h>
 
 void AbstractServer::initLogging() {
     try {
@@ -45,4 +47,21 @@ void AbstractServer::authenticateClient(std::shared_ptr<Client> client) {
     }
     client->setID(authHeader.id);
     spdlog::info("Client authenticated with ID {}", authHeader.id);
+    this->sendAuthResponse(client, ServerAuthStatus::Success);
+}
+
+void AbstractServer::sendAuthResponse(std::shared_ptr<Client> client, ServerAuthStatus status) {
+    ServerAuthResponseHeader response{.status = static_cast<uint32_t>(status)};
+    ssize_t totalBytes = sizeof(response);
+    char* buffer = reinterpret_cast<char*>(&response);
+    ssize_t bytesLeft = totalBytes;
+    while (bytesLeft > 0) {
+        ssize_t bytesWritten = write(client->getDescriptors().audioFd, buffer, bytesLeft);
+        if (bytesWritten == -1) {
+            throw std::runtime_error("Failed to send auth response");
+        }
+        bytesLeft -= bytesWritten;
+        buffer += bytesWritten;
+    }
+    spdlog::info("Auth response sent to client");
 }
