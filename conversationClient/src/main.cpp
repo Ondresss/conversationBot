@@ -1,5 +1,7 @@
 #include <iostream>
+#include <memory>
 #include <spdlog/spdlog.h>
+#include <utility>
 
 #ifdef __linux_specific__
 #include <cstdlib>
@@ -8,6 +10,8 @@
 #include "../headers/AudioHandler.h"
 #include "../headers/ConversationBot.h"
 #include "../headers/argparse.hpp"
+#include "../headers/CameraHandler.h"
+#include "../headers/CameraClient.h"
 int main(int argc,const char** argv) {
     #ifdef __linux_specific__
     setenv("PIPEWIRE_RATE", "16000", 0);
@@ -29,7 +33,12 @@ int main(int argc,const char** argv) {
         program.add_argument("-sr","-sampleRate","--sr").help("Specify sample rate for audio").default_value(16000).scan<'i',int>();
         program.add_argument("-noChannels").help("Specify number of channels for audio").default_value(1).scan<'i',int>();
         program.add_argument("-eoSentenceTh").help("specify threshold for end of sentence").default_value(45).scan<'i',int>();
-
+        program.add_argument("-imagePort","--imagePort").help("Specify port for image server").default_value(9998).scan<'i',int>();
+        program.add_argument("-imageIp","--imageIp").help("Specify IP address for image server").default_value(std::string("0.0.0.0"));
+        program.add_argument("-noFrames","--noFrames").help("Specify number of frames for specific period of x seconds").default_value(2).scan<'i',int>();
+        program.add_argument("-noSecondsPeriod","--noSecondsPeriod").help("Specify number of seconds for which will be frames sent").default_value(1).scan<'i',int>();
+        program.add_argument("-frameWidth","--frameWidth").help("Specify frame width").default_value(640).scan<'i',int>();
+        program.add_argument("-frameHeight","--frameHeight").help("Specify frame height").default_value(480).scan<'i',int>();
         program.parse_args(argc,argv);
         double noiseThreshold = program.get<float>("-th");
         std::string ip = program.get<std::string>("-ip");
@@ -37,19 +46,23 @@ int main(int argc,const char** argv) {
         int sr = program.get<int>("-sr");
         int noChannels = program.get<int>("-noChannels");
         int eoSentenceTh = program.get<int>("-eoSentenceTh");
-
+        int imagePort = program.get<int>("-imagePort");
+        std::string imageIp = program.get<std::string>("-imageIp");
+        CameraHandler::CameraHandlerParams cameraParams{};
+        cameraParams.noFramesPerXSec = std::make_pair(program.get<int>("-noFrames"), program.get<int>("-noSecondsPeriod"));
+        cameraParams.width = program.get<int>("-frameWidth");
+        cameraParams.height = program.get<int>("-frameHeight");
         ConversationBot::initLogging();
         std::shared_ptr<AudioHandler> handler = std::make_shared<AudioHandler>(noChannels,0,sr,512,noiseThreshold,eoSentenceTh);
-        ConversationClient::ServerInfo info{port,ip};
-        std::shared_ptr<ConversationClient> client = std::make_shared<ConversationClient>(info);
-        ConversationBot bot(handler,client);
-        spdlog::info("Initialization complete");
+        ServerInfo conversationServerInfo{ip,port};
+        std::shared_ptr<AbstractClient> client = std::make_shared<ConversationClient>(conversationServerInfo);
+        std::shared_ptr<AbstractClient> imageClient = std::make_shared<CameraClient>(ServerInfo{imageIp,imagePort},cameraParams);
+        ConversationBot bot({client, imageClient});
         bot.run();
     } catch (std::exception& e)
     {
-        std::cout << "Exception occured: " << e.what() << std::endl;
-        spdlog::error("Exception occured exiting because {}",e.what());
-        std::exit(EXIT_FAILURE);
+        spdlog::error("Main() -> Exception occured exiting because {}",e.what());
+        return EXIT_FAILURE;
     }
-    std::exit(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
 }

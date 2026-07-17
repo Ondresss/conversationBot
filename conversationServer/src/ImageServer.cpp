@@ -77,10 +77,10 @@ void ImageServer::handleClient(std::shared_ptr<Client> client) {
     auto clientRegistry = this->context->getClientRegistry();
     try {
         spdlog::info("Image server: Handling client with IP {}", client->getIP());
-        ServerImageControlHeader header{.status = ServerImageStatus::INFO, .periodMs = this->params.period, .imageCount = this->params.noBufferedImages, .compressType = "JPEG"};
-        this->sendHeaderTCP(client, header);
         std::vector<cv::Mat> bufferedFrames(this->params.noBufferedImages);
+        ServerImageControlHeader header{.status = ServerImageStatus::INFO, .periodMs = this->params.period, .imageCount = this->params.noBufferedImages, .compressType = "JPEG"};
         while (true) {
+            this->sendHeaderTCP(client, header);
             for (std::size_t i{0}; i < this->params.noBufferedImages; ++i) {
                 this->recieveImageTCP(client, bufferedFrames[i]);
                 spdlog::info("Image server: Received image {}", i);

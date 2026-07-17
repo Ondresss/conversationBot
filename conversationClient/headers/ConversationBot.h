@@ -3,19 +3,22 @@
 //
 #pragma once
 #include <memory>
+#include "AbstractClient.h"
 #include "AudioHandler.h"
 #include "ConversationClient.h"
 #include <mutex>
 #include <spdlog/spdlog.h>
 #include <spdlog/async.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include <thread>
 class ConversationBot{
 public:
-    ConversationBot(std::shared_ptr<AudioHandler> audioHandler,std::shared_ptr<ConversationClient> client)
-    : audioHandler(std::move(audioHandler)),client(std::move(client)) {}
+    ConversationBot(const std::vector<std::shared_ptr<AbstractClient>>& clients)
+    : clients(clients) {}
+    ~ConversationBot();
     void run();
     static void initLogging();
 private:
-    std::shared_ptr<AudioHandler> audioHandler;
-    std::shared_ptr<ConversationClient> client;
+    std::vector<std::shared_ptr<AbstractClient>> clients;
+    std::vector<std::jthread> serverThreads;
 };

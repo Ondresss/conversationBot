@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include <memory>
 #include <string>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -10,6 +11,8 @@
 #include <stdexcept>
 #include <arpa/inet.h>
 #include <iostream>
+#include "AbstractClient.h"
+#include "AudioHandler.h"
 #include "AudioPacket.h"
 #include "ClientIdentifier.h"
 #include "ServerAuthResponseHeader.h"
@@ -17,29 +20,13 @@
 #include "ClientAuthHeader.h"
 #include "ClientConversationHeader.h"
 
-class ConversationClient {
+class ConversationClient : public AbstractClient {
 public:
-    struct ServerInfo {
-        int port = -1;
-        std::string ip;
-    };
-
-    explicit ConversationClient(ServerInfo serverInfo) : serverInfo(std::move(serverInfo)) {
-        this->init();
-        this->id = ClientIdentifier::getIdentifier();
-    };
-    void connectToServer();
-    void sendAuthRequest();
-    bool authenticationSuccessful() const;
-    void disconnectFromServer() const;
+    explicit ConversationClient(ServerInfo serverInfo) : AbstractClient(serverInfo) {};
     void sendAudioPacket(const AudioPacket& audioPacket);
     std::tuple<const std::vector<std::int16_t>&,uint32_t> getResponseFromServer();
-
+    void run() override;
 private:
-    ServerInfo serverInfo;
-    int fd = -1;
     std::vector<std::int16_t> responseBuffer;
-    struct sockaddr_in servAddr{};
-    uint64_t id = 0x0;
-    void init();
+    std::shared_ptr<AudioHandler> audioHandler = nullptr;
 };

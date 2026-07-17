@@ -1,18 +1,58 @@
 #include "../headers/CameraHandler.h"
 #include "glib.h"
 #include "gst/gst.h"
+#include "gst/gstobject.h"
 #include <spdlog/spdlog.h>
 
-CameraHandler::CameraHandler() {
+CameraHandler::CameraHandler(CameraHandler::CameraHandlerParams params) : params(std::move(params)) {
     this->optimalPipeline = this->getOptimalPipeline();
     spdlog::debug("CameraHandler::CameraHandler() -> optimalPipeline: {}", this->optimalPipeline);
     this->initialize();
     spdlog::debug("CameraHandler::CameraHandler() -> pipeline initialized");
 }
 
-void CameraHandler::run() {
-    gst_element_set_state(this->pipeline, GST_STATE_PLAYING);
+CameraHandler::~CameraHandler() {
+    gst_element_set_state(this->pipeline, GST_STATE_NULL);
+    gst_object_unref(this->pipeline);
+    gst_deinit();
+}
 
+std::optional<std::vector<uint8_t>> CameraHandler::captureImage() {
+    GstElement* sinkElement = gst_bin_get_by_name(GST_BIN(pipeline), "mysink");
+    if(!sinkElement) {
+        spdlog::debug("CameraHandler::captureImage() -> sinkElement not found");
+        return std::nullopt;
+    }
+    GstAppSink* appsink = GST_APP_SINK(sinkElement);
+    GstSample* sample = gst_app_sink_try_pull_sample(appsink, 2 * GST_SECOND);
+    gst_object_unref(sinkElement);
+
+    if (!sample) {
+        spdlog::warn("captureSingleFrame: Timeout or EOS. No sample received from appsink.");
+        return std::nullopt;
+    }
+
+    GstBuffer* buffer = gst_sample_get_buffer(sample);
+    if (!buffer) {
+        spdlog::error("captureSingleFrame: Sample contains no buffer");
+        gst_sample_unref(sample);
+        return std::nullopt;
+    }
+
+    GstMapInfo map;
+    if (!gst_buffer_map(buffer, &map, GST_MAP_READ)) {
+        spdlog::error("captureSingleFrame: Failed to map GstBuffer memory");
+        gst_sample_unref(sample);
+        return std::nullopt;
+    }
+
+    std::vector<uint8_t> jpegData(map.data, map.data + map.size);
+    spdlog::debug("captureSingleFrame: Successfully captured JPEG (size: {} bytes)", jpegData.size());
+
+    gst_buffer_unmap(buffer, &map);
+    gst_sample_unref(sample);
+
+    return jpegData;
 }
 
 void CameraHandler::initialize() {
@@ -39,13 +79,10 @@ void CameraHandler::initialize() {
 
     if(feature == nullptr) {
         spdlog::debug("CameraHandler::getOptimalPipeline() -> libcamerasrc plugin not found");
-        return "v4l2src device=/dev/video0 ! image/jpeg,width=640,height=480,framerate=1/2 ! appsink name=mysink max-buffers=1 drop=true";
+        return "v4l2src device=/dev/video0 ! image/jpeg,width=" + std::to_string(this->params.width) + ",height=" + std::to_string(this->params.height) + ",framerate=" + std::to_string(this->params.noFramesPerXSec.first) + "/" + std::to_string(this->params.noFramesPerXSec.second) + " ! appsink name=mysink max-buffers=1 drop=true";
     } else {
         gst_object_unref(feature);
         spdlog::debug("CameraHandler::getOptimalPipeline() -> libcamerasrc plugin found");
-        return "libcamerasrc ! video/x-raw,width=640,height=480,framerate=1/2 ! videoconvert ! jpegenc ! appsink name=mysink max-buffers=1 drop=true";
+        return "libcamerasrc ! video/x-raw,width=" + std::to_string(this->params.width) + ",height=" + std::to_string(this->params.height) + ",framerate=" + std::to_string(this->params.noFramesPerXSec.first) + "/" + std::to_string(this->params.noFramesPerXSec.second) + " ! videoconvert ! jpegenc ! appsink name=mysink max-buffers=1 drop=true";
     }
-}
-
-CameraHandler::~CameraHandler() {
 }

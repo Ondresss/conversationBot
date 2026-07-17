@@ -35,6 +35,12 @@ add_executable(conversationBot
         headers/ServerConversationHeader.h
         headers/ClientConversationHeader.h
         headers/CameraHandler.h
+        src/CameraHandler.cpp
+        headers/CameraClient.h
+        src/CameraClient.cpp
+        headers/ServerImageControlHeader.h
+        src/AbstractClient.cpp
+        headers/AbstractClient.h
 )
 
 target_include_directories(conversationBot PRIVATE
