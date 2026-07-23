@@ -18,6 +18,7 @@ public:
         this->init();
     };
     std::shared_ptr<Client> waitForConnection();
+    const ServerInfo& getServerInfo() const { return serverInfo; }
 private:
     void init();
     int fd = -1;

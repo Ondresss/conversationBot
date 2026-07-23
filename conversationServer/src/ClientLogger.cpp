@@ -3,13 +3,14 @@
 //
 #include "../headers/ClientLogger.h"
 #include <memory>
+#include <spdlog/spdlog.h>
 
 ClientLogger& ClientLogger::getInstance() {
     static ClientLogger logger("../database.db","../schema.sql");
     return logger;
 }
 
-void ClientLogger::insert(const Client& c) {
+void ClientLogger::insert(std::shared_ptr<Client> c) {
     const char* sql = "INSERT OR IGNORE INTO client (id, ip,port) VALUES (?, ?,?);";
     sqlite3_stmt* stmt;
 
@@ -18,32 +19,33 @@ void ClientLogger::insert(const Client& c) {
         return;
     }
 
-    sqlite3_bind_int64(stmt, 1, static_cast<sqlite3_int64>(c.getId()));
-    sqlite3_bind_text(stmt, 2, c.getIP().c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 3, c.getPort());
+    sqlite3_bind_int64(stmt, 1, static_cast<sqlite3_int64>(c->getId()));
+    sqlite3_bind_text(stmt, 2, c->getIP().c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 3, c->getPort());
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         spdlog::error("Execution failed: {}", sqlite3_errmsg(this->db));
     }
 
     sqlite3_finalize(stmt);
+    spdlog::debug("Client {} inserted into db ", c->getId());
 }
 
-void ClientLogger::insertSpeech(const Client& c, const std::string& question, const std::string& answer) {
+void ClientLogger::insertSpeech(std::shared_ptr<Client> c, const std::string& question, const std::string& answer) {
     const char* sql = "INSERT INTO history (client_id, question, answer) VALUES (?, ?, ?);";
     sqlite3_stmt* stmt;
 
     if (sqlite3_prepare_v2(this->db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
         spdlog::error("Prepare history insert failed: {}", sqlite3_errmsg(this->db));
-        throw std::runtime_error("void ClientLogger::insertSpeech(const Client& c, const std::string& question, const std::string& answer)");
+        throw std::runtime_error("void ClientLogger::insertSpeech(std::shared_ptr<Client> c, const std::string& question, const std::string& answer)");
     }
 
-    sqlite3_bind_int64(stmt, 1, static_cast<sqlite3_int64>(c.getId()));
+    sqlite3_bind_int64(stmt, 1, static_cast<sqlite3_int64>(c->getId()));
     sqlite3_bind_text(stmt, 2, question.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 3, answer.c_str(), -1, SQLITE_STATIC);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         spdlog::error("Step history insert failed: {}", sqlite3_errmsg(this->db));
-        throw std::runtime_error("void ClientLogger::insertSpeech(const Client& c, const std::string& question, const std::string& answer)");
+        throw std::runtime_error("void ClientLogger::insertSpeech(std::shared_ptr<Client> c, const std::string& question, const std::string& answer)");
 
     }
 

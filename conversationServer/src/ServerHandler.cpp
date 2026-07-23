@@ -18,7 +18,7 @@ void ServerHandler::getClientsActiveAll(const Pistache::Rest::Request& request, 
        auto registry = this->context->getClientRegistry();
        nlohmann::json jsonList = nlohmann::json::array();
        registry->forEachClient([&jsonList](const std::shared_ptr<Client>& client) {
-           if(client->getIsConnected() && client->getDescriptors().audioFd != -1 && client->getDescriptors().videoFd != -1) {
+           if(client->getIsConnected() && (client->getDescriptors().audioFd != -1 || client->getDescriptors().videoFd != -1)) {
                jsonList.push_back(client->serialize());
            }
        });
@@ -51,13 +51,14 @@ void ServerHandler::disconnectClient(const Pistache::Rest::Request& request, Pis
 
         std::string idRaw = params.get("id").value();
         std::string serverType = params.get("ServerType").value();
-        idRaw.erase(std::remove(idRaw.begin(), idRaw.end(), '\"'), idRaw.end());
 
-        uint64_t targetId = std::stoull(idRaw);
-        ServerType type = serverType == "voice" ? ServerType::Conversation : ServerType::Image;
-        auto registry = this->context->getClientRegistry();
         try {
+            uint64_t targetId = std::stoull(idRaw);
+            ServerType type = serverType == "voice" ? ServerType::Conversation : ServerType::Image;
+            auto registry = this->context->getClientRegistry();
+            spdlog::info("REST Controller: Disconnecting client with ID {} of type {}", targetId, toStringServerType(type));
             registry->disconnectClient(targetId, type);
+            spdlog::info("REST Controller: Client disconnected successfully");
             response.send(Pistache::Http::Code::Ok, "Client disconnected");
         } catch (const std::exception& e) {
             response.send(Pistache::Http::Code::Not_Found, "Client not found or already offline " + std::string(e.what()));

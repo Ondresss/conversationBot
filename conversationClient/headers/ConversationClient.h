@@ -22,7 +22,7 @@
 
 class ConversationClient : public AbstractClient {
 public:
-    explicit ConversationClient(ServerInfo serverInfo) : AbstractClient(serverInfo) {};
+    ConversationClient(ServerInfo serverInfo, std::shared_ptr<AudioHandler> audioHandler) : AbstractClient(serverInfo), audioHandler(std::move(audioHandler)) {};
     void sendAudioPacket(const AudioPacket& audioPacket);
     std::tuple<const std::vector<std::int16_t>&,uint32_t> getResponseFromServer();
     void run() override;

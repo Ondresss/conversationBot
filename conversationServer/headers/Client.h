@@ -4,12 +4,16 @@
 #pragma once
 #include "ConversationSession.h"
 #include "ServerType.h"
+#include <chrono>
+#include <cstddef>
 #include <memory>
+#include <opencv2/core/mat.hpp>
 #include <shared_mutex>
 #include <string>
 #include <nlohmann/json.hpp>
 #include <mutex>
 #include <unistd.h>
+#include <format>
 class Client {
 public:
     struct Descriptor {
@@ -43,13 +47,17 @@ public:
     void setID(uint64_t id_) { this->id = id_; }
     void setImageServerDescriptor(int fd) { descriptors.videoFd = fd; }
     void setAudioServerDescriptor(int fd) { descriptors.audioFd = fd; }
-
+    void startUptimeMeasurement() { this->startTime = std::chrono::steady_clock::now(); }
+    void clearImageBuffer() { imageBuffer.clear(); }
+    void setImageBuffer(const std::vector<cv::Mat>& buffer) { imageBuffer = buffer; }
+    [[nodiscard]] std::string getUptime() const;
     inline void addHistoryEntry(const std::string& question,const std::string& answer) {
         this->historyList.push_back(ClientHistory{question,answer});
     }
 
     nlohmann::json serialize();
 private:
+    std::chrono::steady_clock::time_point startTime;
     std::shared_mutex mutex;
     Descriptor descriptors{};
     std::string clientIP;
@@ -58,4 +66,5 @@ private:
     std::vector<ClientHistory> historyList;
     bool isConnected = true;
     std::unique_ptr<ConversationSession> session = nullptr;
+    std::vector<cv::Mat> imageBuffer;
 };

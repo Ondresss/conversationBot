@@ -21,8 +21,10 @@ public:
     void initialize();
     std::optional<std::vector<uint8_t>> captureImage();
     [[nodiscard]] const CameraHandlerParams& getParams() const { return params; }
+    void startCapture();
 private:
    [[nodiscard]] std::string getOptimalPipeline() const;
+    void checkGstreamerErrors(GstElement* pipeline);
    GstElement* pipeline = nullptr;
    std::string optimalPipeline;
    CameraHandlerParams params{};

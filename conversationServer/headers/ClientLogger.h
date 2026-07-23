@@ -13,8 +13,8 @@
 class ClientLogger {
 public:
     static ClientLogger& getInstance();
-    void insert(const Client& c);
-    void insertSpeech(const Client& c, const std::string& question, const std::string& answer);
+    void insert(std::shared_ptr<Client> c);
+    void insertSpeech(std::shared_ptr<Client> c, const std::string& question, const std::string& answer);
     std::vector<std::shared_ptr<Client>> selectAll();
 private:
     ClientLogger(const std::string& dbName,const std::string& schema);

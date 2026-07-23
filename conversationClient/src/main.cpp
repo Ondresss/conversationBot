@@ -55,12 +55,11 @@ int main(int argc,const char** argv) {
         ConversationBot::initLogging();
         std::shared_ptr<AudioHandler> handler = std::make_shared<AudioHandler>(noChannels,0,sr,512,noiseThreshold,eoSentenceTh);
         ServerInfo conversationServerInfo{ip,port};
-        std::shared_ptr<AbstractClient> client = std::make_shared<ConversationClient>(conversationServerInfo);
+        std::shared_ptr<AbstractClient> conversationClient = std::make_shared<ConversationClient>(conversationServerInfo, handler);
         std::shared_ptr<AbstractClient> imageClient = std::make_shared<CameraClient>(ServerInfo{imageIp,imagePort},cameraParams);
-        ConversationBot bot({client, imageClient});
+        ConversationBot bot({conversationClient, imageClient});
         bot.run();
-    } catch (std::exception& e)
-    {
+    } catch (std::exception& e) {
         spdlog::error("Main() -> Exception occured exiting because {}",e.what());
         return EXIT_FAILURE;
     }

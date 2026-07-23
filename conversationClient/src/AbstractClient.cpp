@@ -45,7 +45,9 @@ void AbstractClient::connectToServer() {
     }
     spdlog::info("Connected to the server with TCP audio socket");
     this->id = ClientIdentifier::getIdentifier();
+    spdlog::info("About to send auth request with id {}", this->id);
     this->sendAuthRequest();
+    spdlog::info("Auth request sent to the server with id {}", this->id);
     if(!this->authenticationSuccessful()) {
         spdlog::info("Authentication failed");
         throw std::runtime_error("Authentication failed");

@@ -11,6 +11,25 @@ CameraHandler::CameraHandler(CameraHandler::CameraHandlerParams params) : params
     spdlog::debug("CameraHandler::CameraHandler() -> pipeline initialized");
 }
 
+void CameraHandler::checkGstreamerErrors(GstElement* pipeline) {
+    GstBus* bus = gst_element_get_bus(pipeline);
+    if (!bus) return;
+    GstMessage* msg = gst_bus_pop_filtered(bus, GST_MESSAGE_ERROR);
+    if (msg) {
+        GError* err = nullptr;
+        gchar* debug_info = nullptr;
+        gst_message_parse_error(msg, &err, &debug_info);
+
+        spdlog::error("GStreamer Error from element {}: {}", GST_OBJECT_NAME(msg->src), err->message);
+        spdlog::error("GStreamer Debug info: {}", debug_info ? debug_info : "none");
+
+        g_clear_error(&err);
+        g_free(debug_info);
+        gst_message_unref(msg);
+    }
+    gst_object_unref(bus);
+}
+
 CameraHandler::~CameraHandler() {
     gst_element_set_state(this->pipeline, GST_STATE_NULL);
     gst_object_unref(this->pipeline);
@@ -24,23 +43,26 @@ std::optional<std::vector<uint8_t>> CameraHandler::captureImage() {
         return std::nullopt;
     }
     GstAppSink* appsink = GST_APP_SINK(sinkElement);
-    GstSample* sample = gst_app_sink_try_pull_sample(appsink, 2 * GST_SECOND);
+    GstSample* sample = gst_app_sink_try_pull_sample(appsink, 5 * GST_SECOND);
     gst_object_unref(sinkElement);
 
     if (!sample) {
         spdlog::warn("captureSingleFrame: Timeout or EOS. No sample received from appsink.");
+        this->checkGstreamerErrors(this->pipeline);
         return std::nullopt;
     }
 
     GstBuffer* buffer = gst_sample_get_buffer(sample);
     if (!buffer) {
         spdlog::error("captureSingleFrame: Sample contains no buffer");
+        this->checkGstreamerErrors(this->pipeline);
         gst_sample_unref(sample);
         return std::nullopt;
     }
 
     GstMapInfo map;
     if (!gst_buffer_map(buffer, &map, GST_MAP_READ)) {
+        this->checkGstreamerErrors(this->pipeline);
         spdlog::error("captureSingleFrame: Failed to map GstBuffer memory");
         gst_sample_unref(sample);
         return std::nullopt;
@@ -53,6 +75,23 @@ std::optional<std::vector<uint8_t>> CameraHandler::captureImage() {
     gst_sample_unref(sample);
 
     return jpegData;
+}
+
+void CameraHandler::startCapture() {
+    if(this->pipeline == nullptr) {
+        spdlog::error("CameraHandler::startCapture() -> pipeline not initialized");
+        return;
+    }
+    gst_element_set_state(this->pipeline, GST_STATE_PLAYING);
+
+    GstState state = GST_STATE_NULL;
+    GstStateChangeReturn ret = gst_element_get_state(this->pipeline, &state, nullptr, 5 * GST_SECOND);
+
+    if (ret == GST_STATE_CHANGE_FAILURE || state != GST_STATE_PLAYING) {
+        spdlog::error("CameraHandler::startCapture() -> Failed to reach PLAYING state (current state: {})", static_cast<int>(state));
+    } else {
+        spdlog::info("CameraHandler::startCapture() -> Pipeline is now PLAYING");
+    }
 }
 
 void CameraHandler::initialize() {
@@ -79,7 +118,11 @@ void CameraHandler::initialize() {
 
     if(feature == nullptr) {
         spdlog::debug("CameraHandler::getOptimalPipeline() -> libcamerasrc plugin not found");
-        return "v4l2src device=/dev/video0 ! image/jpeg,width=" + std::to_string(this->params.width) + ",height=" + std::to_string(this->params.height) + ",framerate=" + std::to_string(this->params.noFramesPerXSec.first) + "/" + std::to_string(this->params.noFramesPerXSec.second) + " ! appsink name=mysink max-buffers=1 drop=true";
+        return "v4l2src device=/dev/video0 ! videorate ! "
+                       "video/x-raw,width=" + std::to_string(this->params.width) +
+                       ",height=" + std::to_string(this->params.height) +
+                       ",framerate=" + std::to_string(this->params.noFramesPerXSec.first) + "/" + std::to_string(this->params.noFramesPerXSec.second) +
+                       " ! videoconvert ! jpegenc ! appsink name=mysink max-buffers=1 drop=true";
     } else {
         gst_object_unref(feature);
         spdlog::debug("CameraHandler::getOptimalPipeline() -> libcamerasrc plugin found");

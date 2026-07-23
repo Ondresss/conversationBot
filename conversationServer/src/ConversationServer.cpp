@@ -12,18 +12,16 @@
 
 
 ConversationServer::ConversationServer(ServerInfo serverInfo,
-       const SpeechToTextConverter::ModelPath& modelPath,
-       std::shared_ptr<LLMGateway> llmGateway_,
-       const TextToSpeechConverter::ConfigParams& ttsParams_,
-       SessionParams sessionParams,
-       std::shared_ptr<SharedContext> context = nullptr) : AbstractServer(serverInfo, context) {
-       this->speechToTextConverter = std::make_unique<SpeechToTextConverter>(modelPath);
-       this->llmGateway = std::move(llmGateway_);
-       this->textToSpeechConverter = std::make_unique<TextToSpeechConverter>(ttsParams_);
-
-       this->sessionParams = sessionParams;
-
-   };
+    const SpeechToTextConverter::ModelPath& modelPath,
+    std::shared_ptr<LLMGateway> llmGateway_,
+    const TextToSpeechConverter::ConfigParams& ttsParams_,
+    SessionParams sessionParams,
+    std::shared_ptr<SharedContext> context = nullptr) : AbstractServer(serverInfo, context) {
+    this->speechToTextConverter = std::make_unique<SpeechToTextConverter>(modelPath);
+    this->llmGateway = std::move(llmGateway_);
+    this->textToSpeechConverter = std::make_unique<TextToSpeechConverter>(ttsParams_);
+    this->sessionParams = sessionParams;
+};
 
 
 void ConversationServer::run() {
@@ -85,7 +83,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                         continue;
                     }
                     auto logger = ClientLogger::getInstance();
-                    logger.insertSpeech(*client,currentText,response);
+                    logger.insertSpeech(client,currentText,response);
                     spdlog::debug("Starting Piper synthesis...");
                     try {
                         this->textToSpeechConverter->convertTextToSpeech(response);

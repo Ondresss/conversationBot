@@ -15,6 +15,8 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/async.h>
 #include "ServerAuthResponseHeader.h"
+#include "ClientLogger.h"
+
 
 class AbstractServer {
 public:
@@ -49,4 +51,7 @@ protected:
     std::unique_ptr<ServerSocket> serverSocket = nullptr;
     std::shared_ptr<SharedContext> context = nullptr;
     std::vector<std::thread> clientThreads;
+
+private:
+    int getActiveFd(std::shared_ptr<Client> client);
 };

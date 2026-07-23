@@ -15,7 +15,6 @@ void ConversationClient::run() {
         switch (audioPacket.type) {
         case AudioType::SILENCE:
             noSilencePackets++;
-            spdlog::debug("Silence detected");
             if (!audioPacket.samples.empty()) this->sendAudioPacket(audioPacket);
             break;
         case AudioType::STARTOFSPEECH:

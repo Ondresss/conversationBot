@@ -28,15 +28,17 @@ void CameraClient::run() {
         if(!this->cameraHandler) throw std::runtime_error("CameraClient: cameraHandler is null");
         this->connectToServer();
         spdlog::info("Camera client running...");
+        this->cameraHandler->startCapture();
         ServerImageControlHeader header;
         std::vector<std::vector<uint8_t>> imagesBuffer;
         while(true) {
             this->recieveServerImageControlHeaderTCP(header);
+            spdlog::info("Received image control header: status={} periodMs={} imageCount={}", static_cast<int>(header.status), header.periodMs, header.imageCount);
             if(header.periodMs == -1) throw std::runtime_error("CameraClient: periodMs is -1");
             if(header.imageCount == -1) throw std::runtime_error("CameraClient: imageCount is -1");
             if(header.status == ServerImageStatus::ERROR) throw std::runtime_error("CameraClient: status is ERROR");
             std::this_thread::sleep_for(
-                           std::chrono::milliseconds(header.periodMs));
+                           std::chrono::milliseconds(header.periodMs * 1000));
             imagesBuffer.reserve(header.imageCount);
             for(std::size_t i{0}; i < header.imageCount; ++i) {
                 auto image = this->cameraHandler->captureImage();

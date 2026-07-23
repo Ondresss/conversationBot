@@ -1,4 +1,5 @@
 #include "../headers/ImageServer.h"
+#include <cstdint>
 #include <memory>
 #include <opencv2/core/mat.hpp>
 #include <spdlog/spdlog.h>
@@ -45,8 +46,10 @@ void ImageServer::run() {
     try {
         if (!this->serverSocket) throw std::runtime_error("ImageServer::run(): serverSocket is null");
         while (true) {
-            spdlog::info("Image server: Waiting for new client....");
+            spdlog::info("ImageServer::run(): Waiting for new client....");
             auto client = this->serverSocket->waitForConnection();
+            spdlog::info("ImageServer::run(): Client connected but is unauthenticated");
+            if(client->getDescriptors().videoFd == -1) throw std::runtime_error("ImageServer::run(): Client videoFd is -1");
             this->authenticateClient(client);
             auto updatedClient = this->updateClientRegistry(client);
             spdlog::info("Image server: New client connected with IP {}",updatedClient->getIP());
@@ -54,7 +57,6 @@ void ImageServer::run() {
         }
         } catch (std::exception& e){
             spdlog::error("ImageServer::run() -> Application failed: " + std::string(e.what()));
-            std::exit(EXIT_FAILURE);
         }
 
 }
@@ -86,6 +88,7 @@ void ImageServer::handleClient(std::shared_ptr<Client> client) {
                 spdlog::info("Image server: Received image {}", i);
             }
             spdlog::info("Image server: total {} images recieved and buffered",this->params.noBufferedImages);
+            client->setImageBuffer(bufferedFrames);
         }
     } catch (std::exception& e) {
         spdlog::error("ImageServer run: " + std::string(e.what()));
@@ -105,6 +108,7 @@ void ImageServer::recvHeaderTCP(std::shared_ptr<Client> client, ClientImageHeade
         bytesLeft -= recvBytes;
         headerPtr += recvBytes;
     }
+    spdlog::debug("ImageServer::recvHeaderTCP: header received [totalBytes={}, width={}, height={}]", header.totalBytes, header.width, header.height);
 }
 
 void ImageServer::recieveImageTCP(std::shared_ptr<Client> client, cv::Mat& image) {
@@ -112,13 +116,14 @@ void ImageServer::recieveImageTCP(std::shared_ptr<Client> client, cv::Mat& image
     this->recvHeaderTCP(client, header);
     ssize_t totalImageBytes = header.totalBytes;
     ssize_t bytesLeft = totalImageBytes;
-    char* imagePtr = new char[totalImageBytes];
+    int8_t* imagePtr = new int8_t[totalImageBytes];
+    int8_t* imagePtrStart = imagePtr;
     while (bytesLeft > 0) {
         ssize_t recvBytes = recv(client->getDescriptors().videoFd, imagePtr, bytesLeft, 0);
         if (recvBytes == -1) throw std::runtime_error("ImageServer::recieveImageTCP(): recv() failed");
         bytesLeft -= recvBytes;
         imagePtr += recvBytes;
     }
-    image = cv::Mat(header.height, header.width, CV_8UC3, imagePtr);
-    delete[] imagePtr;
+    image = cv::Mat(header.height, header.width, CV_8UC3, imagePtrStart);
+    delete[] imagePtrStart;
 }
