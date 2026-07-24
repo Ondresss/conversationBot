@@ -38,6 +38,7 @@ void ClientRegistry::removeClient(std::shared_ptr<Client> client) {
             this->clients.erase(client->getId());
         } else {
             spdlog::warn("ClientRegistry removeClient: client still has active descriptors");
+            return;
         }
         spdlog::info("ClientRegistry removeClient: client removed with ID {}", client->getId());
     } catch(const std::out_of_range&) {

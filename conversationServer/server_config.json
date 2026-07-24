@@ -35,7 +35,7 @@
   "imageServer": {
     "port": 9998,
     "ip": "0.0.0.0",
-    "period": 10,
+    "period": 5,
     "triggerWord": "see",
     "noBufferedImages": 3,
     "compressFormat": "JPEG"

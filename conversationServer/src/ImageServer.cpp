@@ -124,6 +124,6 @@ void ImageServer::recieveImageTCP(std::shared_ptr<Client> client, cv::Mat& image
         bytesLeft -= recvBytes;
         imagePtr += recvBytes;
     }
-    image = cv::Mat(header.height, header.width, CV_8UC3, imagePtrStart);
+    image = cv::Mat(1, totalImageBytes, CV_8UC1, imagePtrStart).clone();
     delete[] imagePtrStart;
 }

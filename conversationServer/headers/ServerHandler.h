@@ -8,6 +8,7 @@
 #include <pistache/endpoint.h>
 #include  "ConversationServer.h"
 #include "SharedContext.h"
+#include <opencv2/opencv.hpp>
 class ServerHandler : public Pistache::Http::Handler {
 public:
 
@@ -25,6 +26,7 @@ public:
     void getClientsAll(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
     void getClientsActiveAll(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
     void disconnectClient(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void getClientImage(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
 
     std::shared_ptr<Pistache::Rest::Router> getRouter() {
         return std::make_shared<Pistache::Rest::Router>(router);

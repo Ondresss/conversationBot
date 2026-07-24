@@ -6,6 +6,7 @@
   let clients = $state([]);
   let loading = $state(true);
   let error = $state(null);
+  let showImages = $state(false);
 
   async function fetchClients() {
     loading = true;
@@ -26,7 +27,30 @@
     }
   }
 
-  onMount(() => {
+  let imageUrl = $state(null);
+  async function fetchImage(client, index = 0) {
+    console.log(`Fetching image ${index} for client ${client.id}`);
+
+    try {
+      const response = await fetch(`/api/conversationServer/getClientImage?id=${client.id}&imageIndex=${index}`);
+
+      if (!response.ok) {
+        throw new Error(`Server vrátil stav ${response.status}`);
+      }
+
+      const blob = await response.blob();
+
+      if (imageUrl) URL.revokeObjectURL(imageUrl);
+
+      imageUrl = URL.createObjectURL(blob);
+
+      showImages = true;
+      console.log("Success image:", imageUrl);
+
+    } catch (e: any) {
+      error = e.message ?? "Chyba při načítání fotky";
+    }
+  }  onMount(() => {
     fetchClients();
   });
 </script>
@@ -106,12 +130,21 @@
                 >
                   Video: {client.connectedStreams.videoStream ? "ON" : "OFF"}
                 </Badge>
+                <Button onclick={() => fetchImage(client,0)}>Show last camera images</Button>
 
               </div>
             </div>
 
           </div>
-
+          {#if showImages}
+            <div class="mt-4 p-2 border rounded-lg bg-black/5">
+              <img
+                src="{imageUrl}"
+                alt="Poslední snímek z kamery"
+                class="max-w-full h-auto rounded"
+              />
+            </div>
+          {/if}
         </div>
         {/each}
         {/if}

@@ -2,6 +2,7 @@
 // Created by andrew on 4/18/26.
 //
 #include "../headers/ServerHandler.h"
+#include <cstddef>
 #include <memory>
 #include <spdlog/spdlog.h>
 #include <string>
@@ -10,6 +11,7 @@ void ServerHandler::setupRestRoutes() {
     Pistache::Rest::Routes::Get(this->router, "/conversationServer/getClients",Pistache::Rest::Routes::bind(&ServerHandler::getClientsAll, this));
     Pistache::Rest::Routes::Get(this->router, "/conversationServer/getClientsActive",Pistache::Rest::Routes::bind(&ServerHandler::getClientsActiveAll, this));
     Pistache::Rest::Routes::Get(this->router, "/conversationServer/disconnectClient",Pistache::Rest::Routes::bind(&ServerHandler::disconnectClient, this));
+    Pistache::Rest::Routes::Get(this->router, "/conversationServer/getClientImage",Pistache::Rest::Routes::bind(&ServerHandler::getClientImage, this));
     spdlog::info("All routes setup\n");
 }
 
@@ -36,6 +38,46 @@ void ServerHandler::setupCors(Pistache::Http::ResponseWriter& response) {
     headers.add<Pistache::Http::Header::AccessControlAllowHeaders>("Origin, X-Requested-With, Content-Type, Accept, Authorization");
 }
 
+void ServerHandler::getClientImage(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response) {
+    try {
+        auto params = request.query();
+        if (!params.has("id")) {
+            response.send(Pistache::Http::Code::Bad_Request, "Missing id");
+            return;
+        }
+        if(!params.has("imageIndex")) {
+            response.send(Pistache::Http::Code::Bad_Request, "Missing imageIndex");
+            return;
+        }
+        int imageIndex = std::stoi(params.get("imageIndex").value());
+        std::size_t clientId = std::stoull(params.get("id").value());
+        auto registry = this->context->getClientRegistry();
+        cv::Mat clientImage;
+        registry->forEachClient([&](std::shared_ptr<Client> c) {
+            if (c->getId() == clientId) {
+                clientImage = c->getImage(imageIndex);
+            }
+        });
+        if (clientImage.empty()) {
+            response.send(Pistache::Http::Code::Not_Found, "Image not found");
+            return;
+        }
+        spdlog::info("REST: found client image for client {}", clientId);
+        size_t dataSize = clientImage.total() * clientImage.elemSize();
+        spdlog::info("REST: client image size = {}", dataSize);
+
+        response.headers().add<Pistache::Http::Header::ContentType>(MIME(Image, Jpeg));
+
+        response.send(
+            Pistache::Http::Code::Ok,
+            reinterpret_cast<const char*>(clientImage.data),
+            dataSize
+        );
+    } catch (const std::exception& e) {
+        spdlog::error("Get client image error: {}", e.what());
+        response.send(Pistache::Http::Code::Internal_Server_Error, e.what());
+    }
+}
 
 void ServerHandler::disconnectClient(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response) {
     try {
