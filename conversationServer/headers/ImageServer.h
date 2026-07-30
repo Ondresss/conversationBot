@@ -16,6 +16,7 @@ public:
         std::size_t period = 0;
         uint32_t noBufferedImages = 1;
         std::string compressFormat = "JPEG";
+        std::size_t imageSpacingPeriod = 1;
     };
     ImageServer(ServerInfo serverInfo, ImageServerParams params, std::shared_ptr<SharedContext> context);
     static std::shared_ptr<ImageServer> loadFromConfig(const std::string& filename);

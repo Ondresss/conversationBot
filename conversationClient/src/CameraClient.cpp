@@ -4,6 +4,7 @@
 #include <spdlog/spdlog.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <thread>
 CameraClient::CameraClient(ServerInfo info, CameraHandler::CameraHandlerParams params) : AbstractClient(info), cameraHandler(std::make_unique<CameraHandler>(params)) {}
 
 CameraClient::~CameraClient() {}
@@ -33,7 +34,7 @@ void CameraClient::run() {
         std::vector<std::vector<uint8_t>> imagesBuffer;
         while(true) {
             this->recieveServerImageControlHeaderTCP(header);
-            spdlog::info("Received image control header: status={} periodMs={} imageCount={}", static_cast<int>(header.status), header.periodMs, header.imageCount);
+            spdlog::info("Received image control header: status={} periodMs={} imageCount={} imageSpacingPeriod={}", static_cast<int>(header.status), header.periodMs, header.imageCount,header.imageSpacingPeriod);
             if(header.periodMs == -1) throw std::runtime_error("CameraClient: periodMs is -1");
             if(header.imageCount == -1) throw std::runtime_error("CameraClient: imageCount is -1");
             if(header.status == ServerImageStatus::ERROR) throw std::runtime_error("CameraClient: status is ERROR");
@@ -45,7 +46,7 @@ void CameraClient::run() {
                 if(!image.has_value()) throw std::runtime_error("CameraClient: image is null");
                 imagesBuffer.emplace_back(image.value().begin(), image.value().end());
             }
-            this->sendImagesTCP(imagesBuffer);
+            this->sendImagesTCP(header,imagesBuffer);
             imagesBuffer.clear();
         }
 
@@ -73,7 +74,7 @@ void CameraClient::sendClientImageHeaderTCP(const ClientImageHeader& header) con
     spdlog::debug("CameraClient -> sent client image header successfully");
 }
 
-void CameraClient::sendImagesTCP(const std::vector<std::vector<uint8_t>>& imagesBuffer) const {
+void CameraClient::sendImagesTCP(const ServerImageControlHeader& serverControlHeader,const std::vector<std::vector<uint8_t>>& imagesBuffer) const {
     for(const auto& image : imagesBuffer) {
         auto params = this->cameraHandler->getParams();
         ClientImageHeader header;
@@ -92,5 +93,7 @@ void CameraClient::sendImagesTCP(const std::vector<std::vector<uint8_t>>& images
             bytesToSend -= sentBytes;
         }
         spdlog::debug("CameraClient -> sent image with params [width={}, height={}, totalBytes={}]", params.width, params.height, header.totalBytes);
+        std::this_thread::sleep_for(
+                       std::chrono::milliseconds(serverControlHeader.imageSpacingPeriod));
     }
 }

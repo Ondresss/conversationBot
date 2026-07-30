@@ -1,18 +1,18 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.28)
 project(conversationServer)
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(TARGET_NAME "conversationServer")
 
-find_package(nlohmann_json 3.10 REQUIRED)
 find_package(CURL REQUIRED)
 find_package(Boost REQUIRED COMPONENTS filesystem)
 find_package(spdlog REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(SQLite3 REQUIRED)
-find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui imgcodecs)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui imgcodecs dnn)
 
-add_executable(conversationServer
+add_executable(${TARGET_NAME}
         src/main.cpp
         src/ConversationServer.cpp
         src/ServerSocket.cpp
@@ -49,12 +49,13 @@ add_executable(conversationServer
         headers/ServerAuthResponseHeader.h
 )
 
-target_include_directories(conversationServer PRIVATE
+target_include_directories(${TARGET_NAME} PRIVATE
         ${CURL_INCLUDE_DIRS}
         /usr/local/include
+        modules
 )
 
-target_link_libraries(conversationServer PRIVATE
+target_link_libraries(${TARGET_NAME} PRIVATE
         sherpa-onnx-c-api
         pthread
         dl
@@ -66,4 +67,10 @@ target_link_libraries(conversationServer PRIVATE
         pistache
         SQLite::SQLite3
         PRIVATE ${OpenCV_LIBS}
+)
+
+target_sources(${TARGET_NAME}
+  PRIVATE
+    FILE_SET CXX_MODULES FILES
+      modules/yoloModule/YoloAnalyzer.cpp
 )

@@ -16,6 +16,7 @@ struct ServerImageControlHeader {
     uint64_t periodMs = 5000;
     uint32_t imageCount = 0;
     char compressType[16] = "JPEG";
+    uint64_t imageSpacingPeriod = 1000;
 };
 
 #pragma pack(pop)

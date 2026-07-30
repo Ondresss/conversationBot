@@ -34,6 +34,9 @@ std::shared_ptr<ImageServer> ImageServer::loadFromConfig(const std::string& file
         if(json["imageServer"].contains("port")) {
             serverInfo.port = json["imageServer"].value("port", -1);
         }
+        if(json["imageServer"].contains("imageSpacingPeriod")) {
+            params.imageSpacingPeriod = json["imageServer"].value("imageSpacingPeriod",1);
+        }
 
     } else {
         throw std::runtime_error("ImageServer::loadFromConfig(): No ImageServer section in config");
@@ -80,7 +83,7 @@ void ImageServer::handleClient(std::shared_ptr<Client> client) {
     try {
         spdlog::info("Image server: Handling client with IP {}", client->getIP());
         std::vector<cv::Mat> bufferedFrames(this->params.noBufferedImages);
-        ServerImageControlHeader header{.status = ServerImageStatus::INFO, .periodMs = this->params.period, .imageCount = this->params.noBufferedImages, .compressType = "JPEG"};
+        ServerImageControlHeader header{.status = ServerImageStatus::INFO, .periodMs = this->params.period, .imageCount = this->params.noBufferedImages, .compressType = "JPEG",.imageSpacingPeriod = this->params.imageSpacingPeriod};
         while (true) {
             this->sendHeaderTCP(client, header);
             for (std::size_t i{0}; i < this->params.noBufferedImages; ++i) {
