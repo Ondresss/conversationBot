@@ -1,10 +1,12 @@
 #include "../headers/ImageServer.h"
+#include "core/IPointsOfInterestAnalyzer.h"
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <opencv2/core/mat.hpp>
 #include <spdlog/spdlog.h>
 #include <sys/types.h>
-ImageServer::ImageServer(ServerInfo serverInfo, ImageServerParams params, std::shared_ptr<SharedContext> context = nullptr) : AbstractServer(serverInfo, context), params(std::move(params)) {}
+ImageServer::ImageServer(ServerInfo serverInfo, ImageServerParams params, std::shared_ptr<IPointsOfInterestAnalyzer> pointsOfInterestAnalyzer, std::shared_ptr<SharedContext> context) : AbstractServer(serverInfo, context), params(std::move(params)), pointsOfInterestAnalyzer(std::move(pointsOfInterestAnalyzer)) {}
 
 std::shared_ptr<ImageServer> ImageServer::loadFromConfig(const std::string& filename) {
     std::ifstream ifs(filename);
@@ -17,32 +19,40 @@ std::shared_ptr<ImageServer> ImageServer::loadFromConfig(const std::string& file
     nlohmann::json json = nlohmann::json::parse(ss.str());
     ImageServerParams params{};
     ServerInfo serverInfo{};
-
+    std::shared_ptr<IPointsOfInterestAnalyzer> pointsOfInterestAnalyzer = nullptr;
     if(json.contains("imageServer")) {
-        if(json["imageServer"].contains("period")) {
-            params.period = json["imageServer"].value("period",-1);
+        if(!json["imageServer"].contains("period")
+            || !json["imageServer"].contains("noBufferedImages")
+            || !json["imageServer"].contains("compressFormat") || !json["imageServer"].contains("ip")
+            || !json["imageServer"].contains("port") || !json["imageServer"].contains("imageSpacingPeriod")) {
+                throw std::runtime_error("ImageServer::loadFromConfig(): period, noBufferedImages, compressFormat, ip, port, and imageSpacingPeriod are required");
         }
-        if(json["imageServer"].contains("noBufferedImages")) {
-            params.noBufferedImages = json["imageServer"].value("noBufferedImages", -1);
+        params.period = json["imageServer"].value("period", -1);
+        params.noBufferedImages = json["imageServer"].value("noBufferedImages", -1);
+        params.compressFormat = json["imageServer"].value("compressFormat", "none");
+        serverInfo.ip = json["imageServer"].value("ip", "");
+        serverInfo.port = json["imageServer"].value("port", -1);
+        params.imageSpacingPeriod = json["imageServer"].value("imageSpacingPeriod", 1);
+
+        if(!json["imageServer"].contains("analyzers")) {
+            throw std::runtime_error("ImageServer::loadFromConfig(): missing analyzers field");
         }
-        if(json["imageServer"].contains("compressFormat")) {
-            params.compressFormat = json["imageServer"].value("compressFormat", "none");
+        for(const auto& analyzer : json["imageServer"]["analyzers"]) {
+            const auto& type = analyzer["type"];
+            if(type["analyzerType"] == "pointsOfInterest") {
+                if(type["modelType"] == "yolo") {
+                    pointsOfInterestAnalyzer = std::make_shared<YoloAnalyzer>(YoloAnalyzer::YoloParams{.cocoClassesFile = analyzer["classPath"], .netModelPath = analyzer["modelPath"]});
+                }
+
+            }
         }
-        if(json["imageServer"].contains("ip")) {
-            serverInfo.ip = json["imageServer"].value("ip", "");
-        }
-        if(json["imageServer"].contains("port")) {
-            serverInfo.port = json["imageServer"].value("port", -1);
-        }
-        if(json["imageServer"].contains("imageSpacingPeriod")) {
-            params.imageSpacingPeriod = json["imageServer"].value("imageSpacingPeriod",1);
-        }
+        if(!pointsOfInterestAnalyzer) throw std::runtime_error("ImageServer::loadFromConfig(): Failed to load pointsOfInterest analyzer");
 
     } else {
         throw std::runtime_error("ImageServer::loadFromConfig(): No ImageServer section in config");
     }
     serverInfo.type = ServerType::Image;
-    return std::make_shared<ImageServer>(serverInfo, params);
+    return std::make_shared<ImageServer>(serverInfo, params, pointsOfInterestAnalyzer);
 }
 
 void ImageServer::run() {
@@ -91,7 +101,9 @@ void ImageServer::handleClient(std::shared_ptr<Client> client) {
                 spdlog::info("Image server: Received image {}", i);
             }
             spdlog::info("Image server: total {} images recieved and buffered",this->params.noBufferedImages);
-            client->setImageBuffer(bufferedFrames);
+            this->applyPointsOfInterestAnalysis(bufferedFrames);
+            auto imageServerContext = this->context->getImageServerContext();
+            imageServerContext->addCurrentAnalysis(this->currentPointsOfInterest, client, bufferedFrames[0]);
         }
     } catch (std::exception& e) {
         spdlog::error("ImageServer run: " + std::string(e.what()));
@@ -129,4 +141,11 @@ void ImageServer::recieveImageTCP(std::shared_ptr<Client> client, cv::Mat& image
     }
     image = cv::Mat(1, totalImageBytes, CV_8UC1, imagePtrStart).clone();
     delete[] imagePtrStart;
+}
+void ImageServer::applyPointsOfInterestAnalysis(const std::vector<cv::Mat>& images) {
+    cv::Mat frame = images.at(0);
+    this->currentPointsOfInterest = this->pointsOfInterestAnalyzer->analyze(frame);
+    for (const auto& point : this->currentPointsOfInterest) {
+        spdlog::debug("PointOfInterest: name={}, confidence={}, boundingBox=[{},{},{},{}]", point.name, point.confidence, point.boundingBox.x, point.boundingBox.y, point.boundingBox.width, point.boundingBox.height);
+    }
 }

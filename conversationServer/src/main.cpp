@@ -1,7 +1,3 @@
-//
-// Created by andrew on 05.03.26.
-//
-
 #include <cstdlib>
 #include <iostream>
 #include <memory>

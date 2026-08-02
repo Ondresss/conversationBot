@@ -34,7 +34,7 @@ public:
         std::shared_ptr<LLMGateway> llmGateway_,
         const TextToSpeechConverter::ConfigParams& ttsParams_,
         SessionParams params,
-        std::shared_ptr<SharedContext> context);
+        std::shared_ptr<SharedContext> context = nullptr);
 
     void run() override;
     void handleClient(std::shared_ptr<Client> client) override;

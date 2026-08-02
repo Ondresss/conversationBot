@@ -36,10 +36,20 @@
     "port": 9998,
     "ip": "0.0.0.0",
     "period": 5,
-    "imageSpacingPeriod": 5000,
+    "imageSpacingPeriod": 1000,
     "triggerWord": "see",
-    "noBufferedImages": 3,
-    "compressFormat": "JPEG"
+    "noBufferedImages": 1,
+    "compressFormat": "JPEG",
+    "analyzers": [
+      {
+        "type": {
+          "analyzerType": "pointsOfInterest",
+          "modelType": "yolo"
+        },
+        "modelPath": "/home/andrew/conversationBot/conversationServer/imageAnalysisModels/yolo/yolo11l.onnx",
+        "classPath": "/home/andrew/conversationBot/conversationServer/imageAnalysisModels/yolo/cocoClasses.txt"
+      }
+    ]
   },
   "wakeWord": {
     "state": true,

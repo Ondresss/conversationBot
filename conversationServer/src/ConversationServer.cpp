@@ -16,7 +16,7 @@ ConversationServer::ConversationServer(ServerInfo serverInfo,
     std::shared_ptr<LLMGateway> llmGateway_,
     const TextToSpeechConverter::ConfigParams& ttsParams_,
     SessionParams sessionParams,
-    std::shared_ptr<SharedContext> context = nullptr) : AbstractServer(serverInfo, context) {
+    std::shared_ptr<SharedContext> context) : AbstractServer(serverInfo, context) {
     this->speechToTextConverter = std::make_unique<SpeechToTextConverter>(modelPath);
     this->llmGateway = std::move(llmGateway_);
     this->textToSpeechConverter = std::make_unique<TextToSpeechConverter>(ttsParams_);

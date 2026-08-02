@@ -12,6 +12,14 @@ find_package(nlohmann_json REQUIRED)
 find_package(SQLite3 REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui imgcodecs dnn)
 
+
+add_library(yoloAnalyzer STATIC
+    modules/yoloModule/YoloAnalyzer.cpp
+    modules/yoloModule/YoloAnalyzer.h
+)
+target_include_directories(yoloAnalyzer PUBLIC modules)
+target_link_libraries(yoloAnalyzer PUBLIC ${OpenCV_LIBS} spdlog::spdlog)
+
 add_executable(${TARGET_NAME}
         src/main.cpp
         src/ConversationServer.cpp
@@ -47,6 +55,8 @@ add_executable(${TARGET_NAME}
         headers/ServerManager.h
         headers/ClientConversationHeader.h
         headers/ServerAuthResponseHeader.h
+        src/ImageServerCache.cpp
+        headers/ImageServerCache.h
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE
@@ -56,6 +66,7 @@ target_include_directories(${TARGET_NAME} PRIVATE
 )
 
 target_link_libraries(${TARGET_NAME} PRIVATE
+        yoloAnalyzer
         sherpa-onnx-c-api
         pthread
         dl
@@ -67,10 +78,4 @@ target_link_libraries(${TARGET_NAME} PRIVATE
         pistache
         SQLite::SQLite3
         PRIVATE ${OpenCV_LIBS}
-)
-
-target_sources(${TARGET_NAME}
-  PRIVATE
-    FILE_SET CXX_MODULES FILES
-      modules/yoloModule/YoloAnalyzer.cpp
 )

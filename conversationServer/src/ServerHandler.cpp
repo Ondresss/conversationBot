@@ -53,11 +53,13 @@ void ServerHandler::getClientImage(const Pistache::Rest::Request& request, Pista
         std::size_t clientId = std::stoull(params.get("id").value());
         auto registry = this->context->getClientRegistry();
         cv::Mat clientImage;
-        registry->forEachClient([&](std::shared_ptr<Client> c) {
-            if (c->getId() == clientId) {
-                clientImage = c->getImage(imageIndex);
-            }
-        });
+        auto imageServerContext = this->context->getImageServerContext();
+        auto analysis = imageServerContext->getClientsAnalysis(clientId);
+        if (analysis == nullptr) {
+            response.send(Pistache::Http::Code::Not_Found, "Image not found");
+            return;
+        }
+        clientImage = analysis->originalImage;
         if (clientImage.empty()) {
             response.send(Pistache::Http::Code::Not_Found, "Image not found");
             return;

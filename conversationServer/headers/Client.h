@@ -48,16 +48,6 @@ public:
     void setImageServerDescriptor(int fd) { descriptors.videoFd = fd; }
     void setAudioServerDescriptor(int fd) { descriptors.audioFd = fd; }
     void startUptimeMeasurement() { this->startTime = std::chrono::steady_clock::now(); }
-    void clearImageBuffer() { imageBuffer.clear(); }
-    void setImageBuffer(const std::vector<cv::Mat>& buffer) {
-        std::unique_lock<std::shared_mutex> lock(mutex);
-        imageBuffer = buffer;
-    }
-    cv::Mat getImage(int index)  {
-        std::unique_lock<std::shared_mutex> lock(mutex);
-        return imageBuffer.at(index);
-    }
-
     [[nodiscard]] std::string getUptime() const;
     inline void addHistoryEntry(const std::string& question,const std::string& answer) {
         this->historyList.push_back(ClientHistory{question,answer});
@@ -74,5 +64,4 @@ private:
     std::vector<ClientHistory> historyList;
     bool isConnected = true;
     std::unique_ptr<ConversationSession> session = nullptr;
-    std::vector<cv::Mat> imageBuffer;
 };
