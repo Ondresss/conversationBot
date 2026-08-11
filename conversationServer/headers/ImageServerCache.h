@@ -15,6 +15,16 @@ public:
         cv::Mat processedImage;
         cv::Mat originalImage;
         std::string timestamp;
+
+        nlohmann::json serialize() const {
+            nlohmann::json jsonResponse;
+            jsonResponse["pointsOfInterest"] = nlohmann::json::array();
+            for (const auto& point : pointsOfInterest) {
+                jsonResponse["pointsOfInterest"].push_back(point.serialize());
+            }
+            jsonResponse["timestamp"] = timestamp;
+            return jsonResponse;
+        }
     };
     ImageServerCache() = default;
     ~ImageServerCache() = default;

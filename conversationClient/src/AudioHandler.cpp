@@ -102,12 +102,14 @@ int AudioHandler::recordCallback(void* outputBuffer, void* inputBuffer, unsigned
 
 int AudioHandler::playbackCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime,
     RtAudioStreamStatus status, void* userData) {
-
-
     auto* ctx = static_cast<PlaybackContext*>(userData);
     auto out = static_cast<int16_t*>(outputBuffer);
     std::lock_guard<std::mutex> lock(ctx->mtx);
-    ctx->isTalking = true;
+
+    if (!ctx->canTalk) {
+        std::fill(out, out + nBufferFrames, 0);
+        return 0;
+    }
     for (unsigned int i = 0; i < nBufferFrames; i++) {
         if (ctx->currentPos >= ctx->currentVector.size()) {
             if (!ctx->queue.empty()) {
@@ -116,12 +118,18 @@ int AudioHandler::playbackCallback(void* outputBuffer, void* inputBuffer, unsign
                 ctx->currentPos = 0;
             } else {
                 out[i] = 0;
+                if(ctx->canTalk) {
+                    ctx->doneTalking = true;
+                }
                 continue;
             }
         }
         out[i] = ctx->currentVector.at(ctx->currentPos++);
+        ctx->doneTalking = false;
     }
-    ctx->isTalking = false;
+    if(ctx->doneTalking) {
+        ctx->cv.notify_one();
+    }
     return 0;
 
 }

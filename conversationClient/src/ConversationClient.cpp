@@ -2,6 +2,9 @@
 // Created by andrew on 05.03.26.
 //
 #include  "../headers/ConversationClient.h"
+#include <cstdint>
+#include <mutex>
+#include <spdlog/spdlog.h>
 
 void ConversationClient::run() {
     if (!this->audioHandler) throw std::runtime_error("ConversationBot::run(): audioHandler is null");
@@ -9,7 +12,7 @@ void ConversationClient::run() {
     this->audioHandler->startRecording();
     this->audioHandler->startPlayback();
     int noSilencePackets = 0;
-    while (noSilencePackets < 1000) {
+    while (noSilencePackets < 100000) {
         if (!this->audioHandler->hasPackets()) continue;
         auto audioPacket = this->audioHandler->getNextAudioPacket();
         switch (audioPacket.type) {
@@ -22,24 +25,53 @@ void ConversationClient::run() {
             spdlog::debug("Start of speech detected\n");
             this->sendAudioPacket(audioPacket);
             break;
-        case AudioType::ENDOFSPEECH: {
+            case AudioType::ENDOFSPEECH: {
                 noSilencePackets = 0;
                 spdlog::debug("End of speech detected");
                 this->sendAudioPacket(audioPacket);
-                auto [response, status] = this->getResponseFromServer();
-                if (status == 1) {
-                    spdlog::warn("Sentence was too short");
-                    continue;
+
+                bool streaming = true;
+                while (streaming) {
+                    auto [response, status] = this->getResponseFromServer();
+
+                    if (status == ServerStatus::TOO_SHORT) {
+                        spdlog::warn("Sentence was too short");
+                        streaming = false;
+                        continue;
+                    }
+                    if (status == ServerStatus::EMPTY_RESPONSE) {
+                        spdlog::info("Received empty response");
+                        streaming = false;
+                        continue;
+                    }
+
+                    if (!response.empty()) {
+                        this->audioHandler->setPlaybackContextData(response);
+                    }
+
+                    if (status == ServerStatus::OK) {
+                        streaming = false;
+                    }
                 }
-                if (status == 2) {
-                    spdlog::info("Recieved empty response");
-                    continue;
+
+                auto& ctx = this->audioHandler->getPlaybackContextData();
+                {
+                    std::lock_guard lk(ctx.mtx);
+                    ctx.doneTalking = false;
+                    ctx.canTalk = true;
+                    spdlog::debug("Master notified worker to start talking");
                 }
-                this->audioHandler->setPlaybackContextData(response);
-                while (this->audioHandler->isSpeaking()) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                ctx.cv.notify_one();
+
+                {
+                    std::unique_lock lk(ctx.mtx);
+                    ctx.cv.wait(lk, [&ctx] { return ctx.doneTalking; });
+                }
                 spdlog::info("Done talking");
+                ctx.doneTalking = false;
+                ctx.canTalk = false;
                 break;
-        }
+            }
         case AudioType::SPEECH:
             noSilencePackets = 0;
             spdlog::debug("Speech detected");
@@ -86,7 +118,7 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
     }
 }
 
- std::tuple<const std::vector<std::int16_t>&,uint32_t> ConversationClient::getResponseFromServer() {
+ std::tuple<const std::vector<std::int16_t>&,ServerStatus> ConversationClient::getResponseFromServer() {
     spdlog::debug("Reading response from the server");
     ServerConversationHeader serverHeader{};
     auto serverHeaderPtr = reinterpret_cast<char*>(&serverHeader);
@@ -101,7 +133,7 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
 
     this->responseBuffer.resize(numSamples);
 
-    spdlog::debug("Server header read [totalLength,status]=[{},{}]",serverHeader.totalLen,serverHeader.status);
+    spdlog::debug("Server header read [totalLength,status]=[{},{}]",serverHeader.totalLen,static_cast<uint32_t>(serverHeader.status));
     char* dataPtr = reinterpret_cast<char*>(this->responseBuffer.data());
     ssize_t bytesLeft = serverHeader.totalLen;
     while (bytesLeft > 0) {

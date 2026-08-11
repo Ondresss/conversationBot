@@ -10,15 +10,19 @@
 #include <mutex>
 #include <queue>
 #include <rtaudio/RtAudio.h>
+#include <condition_variable>
 
 class AudioHandler {
 public:
   struct PlaybackContext {
     std::mutex mtx;
+    std::condition_variable cv;
     std::queue<std::vector<std::int16_t>> queue;
     std::vector<std::int16_t> currentVector;
     size_t currentPos = 0;
-    bool isTalking = false;
+    bool canTalk = false;
+    bool doneTalking = false;
+
   };
   AudioHandler(unsigned int noChannels, unsigned int firstChanel,
                unsigned int sampleRate, unsigned int bufferFrames,

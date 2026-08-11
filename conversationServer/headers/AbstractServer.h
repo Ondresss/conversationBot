@@ -2,7 +2,6 @@
 #include "Client.h"
 #include "ServerInfo.h"
 #include "ServerSocket.h"
-#include <compare>
 #include <memory>
 #include <opencv2/photo/ccm.hpp>
 #include <thread>

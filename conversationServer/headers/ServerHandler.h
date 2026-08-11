@@ -27,6 +27,9 @@ public:
     void getClientsActiveAll(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
     void disconnectClient(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
     void getClientImage(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void getClientImageAnalysis(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+    void getClientProcessedImage(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response);
+
 
     std::shared_ptr<Pistache::Rest::Router> getRouter() {
         return std::make_shared<Pistache::Rest::Router>(router);

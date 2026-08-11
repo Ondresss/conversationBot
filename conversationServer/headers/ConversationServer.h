@@ -22,6 +22,8 @@
 #include  "ConversationSession.h"
 #include "ClientConversationHeader.h"
 #include "AbstractServer.h"
+#include "ServerStatus.h"
+#include "LLMPrompt.h"
 class ConversationServer : public AbstractServer {
 public:
     struct SessionParams {
@@ -38,12 +40,9 @@ public:
 
     void run() override;
     void handleClient(std::shared_ptr<Client> client) override;
-
     std::vector<float> readAudioFromClient(const std::shared_ptr<Client>& client,uint32_t& status);
     void writeResponse(const std::shared_ptr<Client>& client,const std::vector<std::int16_t>& soundBytes,ServerStatus status);
-
     bool handleSession(std::shared_ptr<Client> client,const std::string& response);
-
     static std::shared_ptr<ConversationServer> loadFromConfig(const std::string& filename);
     void sendEmptyResponse(std::shared_ptr<Client> client,std::vector<float>& audioBuffer);
 private:
@@ -51,4 +50,6 @@ private:
     std::unique_ptr<SpeechToTextConverter> speechToTextConverter = nullptr;
     std::unique_ptr<TextToSpeechConverter> textToSpeechConverter = nullptr;
     SessionParams sessionParams{};
+
+    void releaseWorkers();
 };

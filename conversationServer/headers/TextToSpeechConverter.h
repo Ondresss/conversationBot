@@ -11,6 +11,8 @@
 #include <boost/process/v1/search_path.hpp>
 #include <vector>
 #include <filesystem>
+#include <functional>
+
 class TextToSpeechConverter {
 public:
     struct ConfigParams {
@@ -25,6 +27,7 @@ public:
     explicit TextToSpeechConverter(ConfigParams params_) : params(std::move(params_)) {}
 
     void convertTextToSpeech(const std::string& textToConvert);
+    void convertTextToSpeechStream(const std::string& textToConvert, std::function<void(const std::vector<std::int16_t>&)> callback);
     [[nodiscard]] const std::vector<std::int16_t>& getOutput() const { return this->outputBuffer; }
 private:
     ConfigParams params;

@@ -19,12 +19,13 @@
 #include "ServerConversationHeader.h"
 #include "ClientAuthHeader.h"
 #include "ClientConversationHeader.h"
+#include "ServerStatus.h"
 
 class ConversationClient : public AbstractClient {
 public:
     ConversationClient(ServerInfo serverInfo, std::shared_ptr<AudioHandler> audioHandler) : AbstractClient(serverInfo), audioHandler(std::move(audioHandler)) {};
     void sendAudioPacket(const AudioPacket& audioPacket);
-    std::tuple<const std::vector<std::int16_t>&,uint32_t> getResponseFromServer();
+    std::tuple<const std::vector<std::int16_t>&,ServerStatus> getResponseFromServer();
     void run() override;
 private:
     std::vector<std::int16_t> responseBuffer;

@@ -60,10 +60,12 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                 spdlog::info("Read full sentence");
                 if (audioBuffer.size() <= 12000) {
                     spdlog::error("Client sentence was too short!");
-                    this->writeResponse(client,{},ServerStatus::TOOSHORT);
+                    this->writeResponse(client,{},ServerStatus::TOO_SHORT);
                     audioBuffer.clear();
                     continue;
                 }
+                this->releaseWorkers();
+                spdlog::debug("ConversationServer: all workers finished the work, processing audio buffer of size {}", audioBuffer.size());
                 std::string currentText = this->speechToTextConverter->processAudioChunk(clientStream, audioBuffer);
                 spdlog::info("Audio processed");
                 if (!LanguageValidator::isJunkOrEmpty(currentText)) {
@@ -74,7 +76,12 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                         this->sendEmptyResponse(client,audioBuffer);
                         continue;
                     }
-                    std::string response = this->llmGateway->askLLM(currentText);
+                    this->context->waitForFinishedWork();
+                    spdlog::debug("ConversationServer -> done waiting for finished work");
+                    LLMPrompt prompt(this->context);
+                    LLMPrompt::LLMPromtStructure promptStructure = std::move(prompt.finalizePrompt(client));
+                    std::string promptText = promptStructure.toString();
+                    std::string response = this->llmGateway->askLLM(promptText);
                     spdlog::info("LLM RESPONSE: {}", response);
                     std::regex ignoreRegex("ignore", std::regex_constants::icase);
                     if (std::regex_search(response, ignoreRegex)) {
@@ -84,21 +91,20 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                     }
                     auto logger = ClientLogger::getInstance();
                     logger.insertSpeech(client,currentText,response);
-                    spdlog::debug("Starting Piper synthesis...");
+                    spdlog::debug("Starting Piper streaming synthesis...");
                     try {
-                        this->textToSpeechConverter->convertTextToSpeech(response);
+                        this->textToSpeechConverter->convertTextToSpeechStream(response, [&](const std::vector<int16_t>& chunk) {
+                            this->writeResponse(client, chunk, ServerStatus::PARTIAL_RESPONSE);
+                        });
+                        this->writeResponse(client, {}, ServerStatus::OK);
                     } catch (const std::exception& e) {
-                        spdlog::error("ERR: Exception during TTS");
+                        spdlog::error("ERR: Exception during TTS streaming");
                         spdlog::error("{}",e.what());
                         client->disconnect(ServerType::Conversation);
                         spdlog::info("Closed connection with client");
                         return;
                     }
-                    std::vector<int16_t> audioOut = this->textToSpeechConverter->getOutput();
-                    spdlog::debug("Piper produced {} samples ({} bytes).", audioOut.size(), audioOut.size() * sizeof(int16_t));
-
-                    this->writeResponse(client, audioOut,ServerStatus::OK);
-                    spdlog::debug("Response written to socket.");
+                    spdlog::debug("Response streaming finished.");
                 } else {
                     spdlog::error("Empty text or junk text!");
                     this->writeResponse(client,{},ServerStatus::EMPTY_RESPONSE);
@@ -293,4 +299,11 @@ bool ConversationServer::handleSession(std::shared_ptr<Client> client,const std:
 void ConversationServer::sendEmptyResponse(std::shared_ptr<Client> client,std::vector<float>& audioBuffer) {
     this->writeResponse(client, {}, ServerStatus::EMPTY_RESPONSE);
     audioBuffer.clear();
+}
+
+void ConversationServer::releaseWorkers() {
+    this->context->updateFinishedWorkLatch();
+    spdlog::debug("ConversationServer::releaseWorkers() -> releasing workers");
+    this->context->releaseWorkerGate();
+    spdlog::debug("ConversationServer::releaseWorkers() -> workers released");
 }

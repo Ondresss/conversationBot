@@ -12,7 +12,72 @@ void ServerHandler::setupRestRoutes() {
     Pistache::Rest::Routes::Get(this->router, "/conversationServer/getClientsActive",Pistache::Rest::Routes::bind(&ServerHandler::getClientsActiveAll, this));
     Pistache::Rest::Routes::Get(this->router, "/conversationServer/disconnectClient",Pistache::Rest::Routes::bind(&ServerHandler::disconnectClient, this));
     Pistache::Rest::Routes::Get(this->router, "/conversationServer/getClientImage",Pistache::Rest::Routes::bind(&ServerHandler::getClientImage, this));
+    Pistache::Rest::Routes::Get(this->router, "/conversationServer/getClientImageAnalysis", Pistache::Rest::Routes::bind(&ServerHandler::getClientImageAnalysis, this));
+    Pistache::Rest::Routes::Get(this->router, "/conversationServer/getClientProcessedImage", Pistache::Rest::Routes::bind(&ServerHandler::getClientProcessedImage, this));
     spdlog::info("All routes setup\n");
+}
+
+void ServerHandler::getClientImageAnalysis(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response) {
+    try {
+        auto params = request.query();
+        if(!params.has("clientId")) {
+            response.send(Pistache::Http::Code::Bad_Request, "Missing clientId");
+            return;
+        }
+        auto clientId = params.get("clientId").value();
+        std::size_t cId = std::stoul(clientId);
+        auto serverImageCache = this->context->getImageServerContext();
+        auto analysis = serverImageCache->getClientsAnalysis(cId);
+        if(!analysis) {
+            spdlog::error("No analysis found for client {}", cId);
+            response.send(Pistache::Http::Code::Not_Found, "No analysis found for client");
+            return;
+        }
+        nlohmann::json jsonResponse = analysis->serialize();
+        response.send(Pistache::Http::Code::Ok, jsonResponse.dump());
+    } catch (const std::exception& e) {
+        spdlog::error("Error in getClientImageAnalysis: {}", e.what());
+        response.send(Pistache::Http::Code::Internal_Server_Error, "Internal Server Error");
+    }
+}
+
+void ServerHandler::getClientProcessedImage(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response) {
+    try {
+        auto params = request.query();
+        if(!params.has("clientId")) {
+            response.send(Pistache::Http::Code::Bad_Request, "Missing clientId");
+            return;
+        }
+        auto clientId = params.get("clientId").value();
+        std::size_t cId = std::stoul(clientId);
+        this->context->waitForFinishedWork();
+        auto imageCache = this->context->getImageServerContext();
+        auto imageAnalysis = imageCache->getClientsAnalysis(cId);
+        if(!imageAnalysis) {
+            response.send(Pistache::Http::Code::Not_Found, "No analysis found for client");
+            return;
+        }
+        auto processedImage = imageAnalysis->processedImage;
+        if (processedImage.empty()) {
+            response.send(Pistache::Http::Code::Not_Found, "Image not found");
+            return;
+        }
+        spdlog::info("REST: found client image for client {}", clientId);
+        size_t dataSize = processedImage.total() * processedImage.elemSize();
+        spdlog::info("REST: client image size = {}", dataSize);
+
+        response.headers().add<Pistache::Http::Header::ContentType>(MIME(Image, Jpeg));
+
+        response.send(
+            Pistache::Http::Code::Ok,
+            reinterpret_cast<const char*>(processedImage.data),
+            dataSize
+        );
+
+    } catch (const std::exception& e) {
+        spdlog::error("Error in getClientProcessedImage: {}", e.what());
+        response.send(Pistache::Http::Code::Internal_Server_Error, "Internal Server Error");
+    }
 }
 
 void ServerHandler::getClientsActiveAll(const Pistache::Rest::Request& request, Pistache::Http::ResponseWriter response) {

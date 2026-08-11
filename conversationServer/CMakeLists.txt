@@ -57,6 +57,9 @@ add_executable(${TARGET_NAME}
         headers/ServerAuthResponseHeader.h
         src/ImageServerCache.cpp
         headers/ImageServerCache.h
+        headers/ServerStatus.h
+        headers/LLMPrompt.h
+        src/LLMPrompt.cpp
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE

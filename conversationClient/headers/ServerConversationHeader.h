@@ -1,8 +1,9 @@
 #pragma once
+#include "ServerStatus.h"
 #include <cstdint>
 #pragma pack(push, 1)
 struct ServerConversationHeader {
-    uint32_t status = 0x0;
+    ServerStatus status = ServerStatus::OK;
     uint32_t totalLen = 512;
 };
 #pragma pack(pop)
