@@ -46,7 +46,7 @@ void TextToSpeechConverter::convertTextToSpeechStream(const std::string& textToC
     processStdin << textToConvert << std::endl;
     processStdin.pipe().close();
 
-    std::vector<char> byteBuffer(4096); // Menší buffer pro rychlejší streamování
+    std::vector<char> byteBuffer(4096);
     while (processStdout.read(byteBuffer.data(), byteBuffer.size()).gcount() > 0) {
         std::streamsize bytesRead = processStdout.gcount();
         size_t samplesRead = bytesRead / sizeof(int16_t);

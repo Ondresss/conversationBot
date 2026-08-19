@@ -62,16 +62,21 @@ void ServerHandler::getClientProcessedImage(const Pistache::Rest::Request& reque
             response.send(Pistache::Http::Code::Not_Found, "Image not found");
             return;
         }
-        spdlog::info("REST: found client image for client {}", clientId);
-        size_t dataSize = processedImage.total() * processedImage.elemSize();
-        spdlog::info("REST: client image size = {}", dataSize);
+        std::vector<uchar> jpegBuffer;
+        bool success = cv::imencode(".jpg", processedImage, jpegBuffer);
 
+        if (!success || jpegBuffer.empty()) {
+            spdlog::error("REST: Failed to encode processedImage to JPEG for client {}", clientId);
+            response.send(Pistache::Http::Code::Internal_Server_Error, "Failed to encode image");
+            return;
+        }
+
+        spdlog::info("REST: client JPEG encoded size = {} bytes", jpegBuffer.size());
         response.headers().add<Pistache::Http::Header::ContentType>(MIME(Image, Jpeg));
-
         response.send(
             Pistache::Http::Code::Ok,
-            reinterpret_cast<const char*>(processedImage.data),
-            dataSize
+            reinterpret_cast<const char*>(jpegBuffer.data()),
+            jpegBuffer.size()
         );
 
     } catch (const std::exception& e) {

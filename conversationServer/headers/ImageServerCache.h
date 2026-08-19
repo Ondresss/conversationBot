@@ -31,7 +31,7 @@ public:
     void addCurrentAnalysis(const std::vector<PointOfInterest>& data, std::shared_ptr<Client> client, const cv::Mat& inputImage);
     const std::shared_ptr<AnalyzedImageData>& getClientsAnalysis(std::size_t clientId) const;
 private:
-    std::shared_mutex cacheMutex;
+    mutable std::shared_mutex cacheMutex;
     std::unordered_map<std::size_t,std::shared_ptr<AnalyzedImageData>> cache;
 
     cv::Mat processImage(const std::vector<PointOfInterest>& data,const cv::Mat& inputImage);

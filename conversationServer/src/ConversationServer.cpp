@@ -65,7 +65,6 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                     continue;
                 }
                 this->releaseWorkers();
-                spdlog::debug("ConversationServer: all workers finished the work, processing audio buffer of size {}", audioBuffer.size());
                 std::string currentText = this->speechToTextConverter->processAudioChunk(clientStream, audioBuffer);
                 spdlog::info("Audio processed");
                 if (!LanguageValidator::isJunkOrEmpty(currentText)) {
@@ -74,6 +73,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                     if (!passSession) {
                         spdlog::info("Ignoring response due to invalid session. Question was: '{}'", currentText);
                         this->sendEmptyResponse(client,audioBuffer);
+                        this->context->waitForFinishedWork();
                         continue;
                     }
                     this->context->waitForFinishedWork();
