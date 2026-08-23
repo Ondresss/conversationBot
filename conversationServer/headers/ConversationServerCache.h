@@ -12,8 +12,8 @@ public:
     const std::string& getSpeechToTextOutput() const {
         return speechToTextOutput;
     }
-    void switchActiveState() {
-        this->active = !this->active;
+    void switchActiveState(bool state) {
+        this->active = state;
     }
     bool isActive() const {
         return active;

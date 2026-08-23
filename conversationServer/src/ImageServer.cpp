@@ -96,6 +96,7 @@ void ImageServer::handleClient(std::shared_ptr<Client> client) {
         ServerImageControlHeader header{.status = ServerImageStatus::OK, .periodMs = this->params.period, .imageCount = this->params.noBufferedImages, .compressType = "JPEG",.imageSpacingPeriod = this->params.imageSpacingPeriod};
         while (true) {
             this->context->acquireWorkerGate();
+            this->context->switchActiveStateForCache(ServerType::Image, true);
             spdlog::info("ImageServer: Acquired worker gate");
             this->sendHeaderTCP(client, header);
             for (std::size_t i{0}; i < this->params.noBufferedImages; ++i) {
@@ -106,8 +107,8 @@ void ImageServer::handleClient(std::shared_ptr<Client> client) {
             this->applyPointsOfInterestAnalysis(bufferedFrames);
             auto imageServerContext = this->context->getImageServerContext();
             imageServerContext->addCurrentAnalysis(this->currentPointsOfInterest, client, bufferedFrames[0]);
-            this->context->countDownFinishedWorkLatch();
             spdlog::debug("Image Server: Finished latch count down for client {}", client->getId());
+            this->context->countDownFinishedWorkLatch();
         }
     } catch (std::exception& e) {
         spdlog::error("ImageServer run: " + std::string(e.what()));
@@ -149,6 +150,9 @@ void ImageServer::recieveImageTCP(std::shared_ptr<Client> client, cv::Mat& image
 void ImageServer::applyPointsOfInterestAnalysis(const std::vector<cv::Mat>& images) {
     cv::Mat frame = images.at(0);
     this->currentPointsOfInterest = this->pointsOfInterestAnalyzer->analyze(frame);
+    if(this->currentPointsOfInterest.empty()) {
+        spdlog::warn("No points of interest found");
+    }
     for (const auto& point : this->currentPointsOfInterest) {
         spdlog::debug("PointOfInterest: name={}, confidence={}, boundingBox=[{},{},{},{}]", point.name, point.confidence, point.boundingBox.x, point.boundingBox.y, point.boundingBox.width, point.boundingBox.height);
     }

@@ -60,6 +60,7 @@ add_executable(${TARGET_NAME}
         headers/ServerStatus.h
         headers/LLMPrompt.h
         src/LLMPrompt.cpp
+        src/SharedContext.cpp
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE

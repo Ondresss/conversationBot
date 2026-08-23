@@ -126,6 +126,9 @@ void CameraHandler::initialize() {
     } else {
         gst_object_unref(feature);
         spdlog::debug("CameraHandler::getOptimalPipeline() -> libcamerasrc plugin found");
-        return "libcamerasrc ! video/x-raw,width=" + std::to_string(this->params.width) + ",height=" + std::to_string(this->params.height) + ",framerate=" + std::to_string(this->params.noFramesPerXSec.first) + "/" + std::to_string(this->params.noFramesPerXSec.second) + " ! videoconvert ! jpegenc ! appsink name=mysink max-buffers=1 drop=true";
+        return "libcamerasrc ! video/x-raw,format=NV12,width=" + std::to_string(this->params.width) +
+                       ",height=" + std::to_string(this->params.height) +
+                       ",framerate=" + std::to_string(this->params.noFramesPerXSec.first) + "/" + std::to_string(this->params.noFramesPerXSec.second) +
+                       " ! videoconvert ! jpegenc ! appsink name=mysink max-buffers=1 drop=true";
     }
 }

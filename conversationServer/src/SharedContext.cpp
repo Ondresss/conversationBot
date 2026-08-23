@@ -2,11 +2,10 @@
 #include "../headers/AbstractServer.h"
 #include "../headers/ImageServer.h"
 #include "../headers/ConversationServer.h"
-void SharedContext::switchActiveStateForCache(std::shared_ptr<AbstractServer> server) {
-    if(dynamic_pointer_cast<ImageServer>(server)) {
-            this->imageServerContext->switchActiveState();
-        } else if(dynamic_pointer_cast<ConversationServer>(server)) {
-            this->conversationServerContext->switchActiveState();
-        }
+void SharedContext::switchActiveStateForCache(ServerType type, bool state) {
+    if(type == ServerType::Image) {
+        this->imageServerContext->switchActiveState(state);
+    } else if(type == ServerType::Conversation) {
+        this->conversationServerContext->switchActiveState(state);
     }
 }

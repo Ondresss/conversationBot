@@ -31,7 +31,7 @@ public:
     ~ImageServerCache() = default;
     void addCurrentAnalysis(const std::vector<PointOfInterest>& data, std::shared_ptr<Client> client, const cv::Mat& inputImage);
     const std::shared_ptr<AnalyzedImageData>& getClientsAnalysis(std::size_t clientId) const;
-    void switchActiveState() { this->active = !this->active; }
+    void switchActiveState(bool state) { this->active = state; }
     bool isActive() const { return active; }
 private:
     mutable std::shared_mutex cacheMutex;

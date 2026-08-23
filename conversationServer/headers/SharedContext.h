@@ -7,6 +7,7 @@
 #include <vector>
 #include "ConversationServerCache.h"
 #include "ImageServerCache.h"
+#include "ServerType.h"
 
 class AbstractServer;
 class ImageServer;
@@ -25,7 +26,7 @@ public:
     void countDownFinishedWorkLatch() { if (this->finishedWorkLatch) this->finishedWorkLatch->count_down(); }
     void releaseWorkerGate() { this->workerGate.release(1); }
     void acquireWorkerGate() { this->workerGate.acquire(); }
-    void switchActiveStateForCache(std::shared_ptr<AbstractServer> server);
+    void switchActiveStateForCache(ServerType type, bool state);
 private:
     std::shared_ptr<ClientRegistry> clientRegistry = nullptr;
     std::shared_ptr<ImageServerCache> imageServerContext = nullptr;

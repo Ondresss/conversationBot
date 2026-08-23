@@ -6,6 +6,7 @@
 
 #include "../headers/ClientConversationHeader.h"
 #include <cstdlib>
+#include <execution>
 #include <iostream>
 #include <memory>
 #include <spdlog/spdlog.h>
@@ -64,6 +65,8 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                     audioBuffer.clear();
                     continue;
                 }
+                this->context->updateFinishedWorkLatch();
+                spdlog::debug("ConversationServer -> work latch updated");
                 std::string currentText = this->speechToTextConverter->processAudioChunk(clientStream, audioBuffer);
                 spdlog::info("Audio processed");
                 if (!LanguageValidator::isJunkOrEmpty(currentText)) {
@@ -72,7 +75,6 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                     if (!passSession) {
                         spdlog::info("Ignoring response due to invalid session. Question was: '{}'", currentText);
                         this->sendEmptyResponse(client,audioBuffer);
-                        this->context->waitForFinishedWork();
                         continue;
                     }
                     if((this->sessionParams.triggerWordMechanism == TriggerWordMechanism::WORD && this->containsTriggerWord(currentText)) || this->sessionParams.triggerWordMechanism == TriggerWordMechanism::IGNORE) {
@@ -83,6 +85,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                     LLMPrompt prompt(this->context);
                     LLMPrompt::LLMPromtStructure promptStructure = std::move(prompt.finalizePrompt(client));
                     std::string promptText = promptStructure.toString();
+                    spdlog::info("Current pront for client [id={}] {}", client->getId(), promptText);
                     std::string response = this->llmGateway->askLLM(promptText);
                     spdlog::info("LLM RESPONSE: {}", response);
                     std::regex ignoreRegex("ignore", std::regex_constants::icase);
@@ -156,7 +159,6 @@ std::vector<float> ConversationServer::readAudioFromClient(const std::shared_ptr
 }
 
 void ConversationServer::writeResponse(const std::shared_ptr<Client>& client,const std::vector<std::int16_t>& soundBytes,ServerStatus status) {
-    spdlog::debug("Writing response back to client");
     ServerHeader header{};
     header.status = static_cast<uint32_t>(status);
     header.totalLen = soundBytes.size() * sizeof(std::int16_t);
@@ -178,7 +180,6 @@ void ConversationServer::writeResponse(const std::shared_ptr<Client>& client,con
         dataBytesLeft -= n;
         dataPtr += n;
     }
-    spdlog::debug("Wrote response back to client");
 }
 
 
@@ -235,6 +236,7 @@ std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std
         params.modelPath = llm.value("instruct", "");
         params.language = llm.value("lang", "en");
         params.model = llm.value("model", "");
+        params.ip = llm.value("ip", "127.0.0.1");
     } else {
         spdlog::error("ConversationServer::loadFromConfig(): Missing 'llm' section in config");
         std::exit(EXIT_FAILURE);

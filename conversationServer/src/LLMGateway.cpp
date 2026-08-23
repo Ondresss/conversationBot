@@ -18,24 +18,17 @@ std::string LLMGateway::askLLM(const std::string& text) {
     nlohmann::json json;
     nlohmann::json messages = nlohmann::json::array();
     if (this->params.language == "en") {
-        if (!LanguageValidator::validateEnglish(text)) {
-            return "IGNORE";
-        }
         messages.push_back({
             {"role", "system"},
             {"content", "You are a helpful voice assistant. Speak English only.\n\n"
                         "RULES:\n"
                         "1. It is OK if the user's English grammar is imperfect or broken. Respond normally.\n"
-                        "2. If the input is completely in another language (like Czech, Chinese) or is pure trash/symbols, you MUST reply with ONLY the single word: IGNORE.\n" // Přidáno \n
                         "3. If the user asks about your age, name, or identity, just say you are an AI assistant and you don't have an age.\n"}
         });
     } else if (this->params.language == "cs") {
         messages.push_back({
             {"role", "system"},
-            {"content", "Jsi mluvící hračka. Odpovídej česky, kamarádsky a velmi stručně (1-2 věty).\n"
-                        "PRAVIDLO: Pokud text nedává smysl, je to cizí jazyk, nebo jen jedno náhodné slovo (např. '*Svělí*'), "
-                        "odpověz POUZE slovem: IGNORE\n"
-                        "Příklad: 'Ahoj' -> 'Ahoj kamaráde!'; '*Svělí*' -> IGNORE; 'Hello' -> IGNORE"}
+            {"content", "Jsi mluvící hračka. Odpovídej česky, kamarádsky a velmi stručně (1-2 věty).\n"}
         });
     }
 
@@ -50,10 +43,10 @@ std::string LLMGateway::askLLM(const std::string& text) {
     json["stream"] = false;
 
     std::string jsonData = json.dump();
-
     curl_easy_setopt(this->curl.get(), CURLOPT_WRITEFUNCTION, LLMGateway::writeCallback);
     curl_easy_setopt(this->curl.get(), CURLOPT_WRITEDATA, &readBuffer);
     curl_easy_setopt(this->curl.get(), CURLOPT_POSTFIELDS, jsonData.c_str());
+    curl_easy_setopt(this->curl.get(), CURLOPT_TIMEOUT, 10L);
 
     CURLcode res = curl_easy_perform(this->curl.get());
 
@@ -71,7 +64,6 @@ std::string LLMGateway::askLLM(const std::string& text) {
     }
 
     return responseJson["choices"][0]["message"]["content"].get<std::string>();
-
 
 }
 
@@ -92,7 +84,7 @@ LLMGateway::LLMParams LLMGateway::parseArgs(int argc, const char** argv) {
 
 void LLMGateway::init() {
     std::stringstream ss;
-    ss << "http://127.0.0.1:" << std::to_string(this->params.port) << "/v1/chat/completions";
+    ss << "http://" << this->params.ip << ":" << std::to_string(this->params.port) << "/v1/chat/completions";
     curl_easy_setopt(this->curl.get(), CURLOPT_URL, ss.str().c_str());
 
     this->headers = std::unique_ptr<curl_slist, CurlListDeleter>(curl_slist_append(nullptr, "Content-Type: application/json"));

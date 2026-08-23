@@ -20,9 +20,11 @@
     }
   },
   "llm": {
-    "port": 8080,
+    "port": 11434,
     "lang": "en",
-    "model": "gemma:2b"
+    "model": "gemma2:2b",
+    "ip": "127.0.0.1",
+    "url": ""
   },
   "tts": {
     "lang": "en",
@@ -55,7 +57,7 @@
   },
   "wakeWord": {
     "state": true,
-    "expireTime": 120,
+    "expireTime": 1,
     "word": "hello"
   }
 }

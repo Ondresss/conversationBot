@@ -16,6 +16,7 @@ public:
         std::string modelPath;
         std::string language  = "en";
         std::string model = "";
+        std::string ip = "127.0.0.1";
     };
     struct CurlDeleter {
         void operator()(CURL* curl_) const {
