@@ -8,6 +8,9 @@
 #include "ConversationServerCache.h"
 #include "ImageServerCache.h"
 
+class AbstractServer;
+class ImageServer;
+class ConversationServer;
 class SharedContext {
 public:
     SharedContext() : clientRegistry(std::make_shared<ClientRegistry>()), imageServerContext(std::make_shared<ImageServerCache>()), conversationServerContext(std::make_shared<ConversationServerCache>()) {
@@ -22,7 +25,7 @@ public:
     void countDownFinishedWorkLatch() { if (this->finishedWorkLatch) this->finishedWorkLatch->count_down(); }
     void releaseWorkerGate() { this->workerGate.release(1); }
     void acquireWorkerGate() { this->workerGate.acquire(); }
-
+    void switchActiveStateForCache(std::shared_ptr<AbstractServer> server);
 private:
     std::shared_ptr<ClientRegistry> clientRegistry = nullptr;
     std::shared_ptr<ImageServerCache> imageServerContext = nullptr;

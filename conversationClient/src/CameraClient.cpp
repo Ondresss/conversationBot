@@ -1,6 +1,7 @@
 #include "../headers/CameraClient.h"
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <spdlog/spdlog.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -24,6 +25,19 @@ void CameraClient::recieveServerImageControlHeaderTCP(ServerImageControlHeader& 
         toStringServerStatus(header.status), header.periodMs, header.imageCount, header.compressType);
 }
 
+void CameraClient::handleCameraLogic(const ServerImageControlHeader& header) {
+    std::vector<std::vector<uint8_t>> imagesBuffer;
+    std::this_thread::sleep_for(
+                    std::chrono::milliseconds(header.periodMs * 1000));
+    imagesBuffer.reserve(header.imageCount);
+    for(std::size_t i{0}; i < header.imageCount; ++i) {
+        auto image = this->cameraHandler->captureImage();
+        if(!image.has_value()) throw std::runtime_error("CameraClient: image is null");
+        imagesBuffer.emplace_back(image.value().begin(), image.value().end());
+    }
+    this->sendImagesTCP(header, imagesBuffer);
+}
+
 void CameraClient::run() {
     try {
         if(!this->cameraHandler) throw std::runtime_error("CameraClient: cameraHandler is null");
@@ -34,20 +48,24 @@ void CameraClient::run() {
         std::vector<std::vector<uint8_t>> imagesBuffer;
         while(true) {
             this->recieveServerImageControlHeaderTCP(header);
-            spdlog::info("Received image control header: status={} periodMs={} imageCount={} imageSpacingPeriod={}", static_cast<int>(header.status), header.periodMs, header.imageCount,header.imageSpacingPeriod);
-            if(header.periodMs == -1) throw std::runtime_error("CameraClient: periodMs is -1");
-            if(header.imageCount == -1) throw std::runtime_error("CameraClient: imageCount is -1");
-            if(header.status == ServerImageStatus::ERROR) throw std::runtime_error("CameraClient: status is ERROR");
-            std::this_thread::sleep_for(
-                           std::chrono::milliseconds(header.periodMs * 1000));
-            imagesBuffer.reserve(header.imageCount);
-            for(std::size_t i{0}; i < header.imageCount; ++i) {
-                auto image = this->cameraHandler->captureImage();
-                if(!image.has_value()) throw std::runtime_error("CameraClient: image is null");
-                imagesBuffer.emplace_back(image.value().begin(), image.value().end());
+            spdlog::debug("Received image control header: status={} periodMs={} imageCount={} imageSpacingPeriod={}", static_cast<int>(header.status), header.periodMs, header.imageCount,header.imageSpacingPeriod);
+            switch (header.status) {
+                case ServerImageStatus::ERROR:
+                    throw std::runtime_error("CameraClient: status is ERROR");
+                case ServerImageStatus::OK:
+                    this->handleCameraLogic(header);
+                    break;
+                case ServerImageStatus::SEND:
+                case ServerImageStatus::INFO:
+                    break;
+                case ServerImageStatus::DISCONNECT:
+                    spdlog::warn("Camera client {} disconnected", this->id);
+                    this->disconnectFromServer();
+                    return;
+                default:
+                    throw std::runtime_error("CameraClient: unknown status");
             }
-            this->sendImagesTCP(header,imagesBuffer);
-            imagesBuffer.clear();
+            std::memset(&header, 0, sizeof(header));
         }
 
     } catch (const std::exception& e) {

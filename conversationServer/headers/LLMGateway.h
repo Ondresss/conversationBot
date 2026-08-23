@@ -15,6 +15,7 @@ public:
         int port = -1;
         std::string modelPath;
         std::string language  = "en";
+        std::string model = "";
     };
     struct CurlDeleter {
         void operator()(CURL* curl_) const {

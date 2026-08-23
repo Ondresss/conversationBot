@@ -93,7 +93,7 @@ void ImageServer::handleClient(std::shared_ptr<Client> client) {
     try {
         spdlog::info("Image server: Handling client with IP {}", client->getIP());
         std::vector<cv::Mat> bufferedFrames(this->params.noBufferedImages);
-        ServerImageControlHeader header{.status = ServerImageStatus::INFO, .periodMs = this->params.period, .imageCount = this->params.noBufferedImages, .compressType = "JPEG",.imageSpacingPeriod = this->params.imageSpacingPeriod};
+        ServerImageControlHeader header{.status = ServerImageStatus::OK, .periodMs = this->params.period, .imageCount = this->params.noBufferedImages, .compressType = "JPEG",.imageSpacingPeriod = this->params.imageSpacingPeriod};
         while (true) {
             this->context->acquireWorkerGate();
             spdlog::info("ImageServer: Acquired worker gate");

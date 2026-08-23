@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include <cstdint>
 #include <memory>
 #include "ServerInfo.h"
 #include <vector>
@@ -26,10 +27,17 @@
 #include "LLMPrompt.h"
 class ConversationServer : public AbstractServer {
 public:
+    enum class TriggerWordMechanism : uint32_t {
+        NONE = 0,
+        IGNORE = 1,
+        WORD = 2
+    };
     struct SessionParams {
         bool useWakeWord = false;
         int sessionExpireTime = 0;
         std::string word;
+        TriggerWordMechanism triggerWordMechanism = TriggerWordMechanism::IGNORE;
+        std::string triggerWord;
     };
     ConversationServer(ServerInfo serverInfo,
         const SpeechToTextConverter::ModelPath& modelPath,
@@ -52,4 +60,5 @@ private:
     SessionParams sessionParams{};
 
     void releaseWorkers();
+    bool containsTriggerWord(const std::string& text);
 };

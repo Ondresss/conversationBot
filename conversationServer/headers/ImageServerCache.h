@@ -8,6 +8,7 @@
 #include <opencv2/opencv.hpp>
 #include "../modules/core/PointOfInterest.h"
 #include "Client.h"
+#include <atomic>
 class ImageServerCache {
 public:
     struct AnalyzedImageData {
@@ -30,9 +31,11 @@ public:
     ~ImageServerCache() = default;
     void addCurrentAnalysis(const std::vector<PointOfInterest>& data, std::shared_ptr<Client> client, const cv::Mat& inputImage);
     const std::shared_ptr<AnalyzedImageData>& getClientsAnalysis(std::size_t clientId) const;
+    void switchActiveState() { this->active = !this->active; }
+    bool isActive() const { return active; }
 private:
     mutable std::shared_mutex cacheMutex;
     std::unordered_map<std::size_t,std::shared_ptr<AnalyzedImageData>> cache;
-
+    std::atomic<bool> active = false;
     cv::Mat processImage(const std::vector<PointOfInterest>& data,const cv::Mat& inputImage);
 };

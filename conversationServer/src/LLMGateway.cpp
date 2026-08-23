@@ -5,6 +5,7 @@
 #include "../headers/LLMGateway.h"
 
 #include <iostream>
+#include <spdlog/spdlog.h>
 
 std::size_t LLMGateway::writeCallback(void* contents, size_t size, size_t nmemb, std::string* userp) {
     size_t totalSize = size * nmemb;
@@ -13,43 +14,42 @@ std::size_t LLMGateway::writeCallback(void* contents, size_t size, size_t nmemb,
 }
 
 std::string LLMGateway::askLLM(const std::string& text) {
-
     std::string readBuffer;
     nlohmann::json json;
-
     nlohmann::json messages = nlohmann::json::array();
-
     if (this->params.language == "en") {
         if (!LanguageValidator::validateEnglish(text)) {
             return "IGNORE";
         }
         messages.push_back({
-    {"role", "system"},
-    {"content", "You are a helpful voice assistant. Speak English only.\n\n"
-                "RULES:\n"
-                "1. It is OK if the user's English grammar is imperfect or broken. Respond normally.\n"
-                "2. If the input is completely in another language (like Czech, Chinese) or is pure trash/symbols, you MUST reply with ONLY the single word: IGNORE."
-                "3. If the user asks about your age, name, or identity, just say you are an AI assistant and you don't have an age.\n"}
+            {"role", "system"},
+            {"content", "You are a helpful voice assistant. Speak English only.\n\n"
+                        "RULES:\n"
+                        "1. It is OK if the user's English grammar is imperfect or broken. Respond normally.\n"
+                        "2. If the input is completely in another language (like Czech, Chinese) or is pure trash/symbols, you MUST reply with ONLY the single word: IGNORE.\n" // Přidáno \n
+                        "3. If the user asks about your age, name, or identity, just say you are an AI assistant and you don't have an age.\n"}
         });
-
     } else if (this->params.language == "cs") {
         messages.push_back({
-          {"role", "system"},
-          {"content", "Jsi mluvící hračka. Odpovídej česky, kamarádsky a velmi stručně (1-2 věty).\n"
-                      "PRAVIDLO: Pokud text nedává smysl, je to cizí jazyk, nebo jen jedno náhodné slovo (např. '*Svělí*'), "
-                      "odpověz POUZE slovem: IGNORE\n"
-                      "Příklad: 'Ahoj' -> 'Ahoj kamaráde!'; '*Svělí*' -> IGNORE; 'Hello' -> IGNORE"}
-     });
+            {"role", "system"},
+            {"content", "Jsi mluvící hračka. Odpovídej česky, kamarádsky a velmi stručně (1-2 věty).\n"
+                        "PRAVIDLO: Pokud text nedává smysl, je to cizí jazyk, nebo jen jedno náhodné slovo (např. '*Svělí*'), "
+                        "odpověz POUZE slovem: IGNORE\n"
+                        "Příklad: 'Ahoj' -> 'Ahoj kamaráde!'; '*Svělí*' -> IGNORE; 'Hello' -> IGNORE"}
+        });
     }
 
     messages.push_back({{"role", "user"}, {"content", text}});
-
+    if (!this->params.model.empty()) {
+        json["model"] = this->params.model;
+    } else {
+        throw std::runtime_error("LLM Doesnt have a model to use");
+    }
     json["messages"] = messages;
     json["max_tokens"] = 256;
     json["stream"] = false;
 
     std::string jsonData = json.dump();
-
 
     curl_easy_setopt(this->curl.get(), CURLOPT_WRITEFUNCTION, LLMGateway::writeCallback);
     curl_easy_setopt(this->curl.get(), CURLOPT_WRITEDATA, &readBuffer);
@@ -61,20 +61,18 @@ std::string LLMGateway::askLLM(const std::string& text) {
         throw std::runtime_error("LLMGateway::sendText: Error while sending request via Curl");
     }
 
-    try {
-        auto responseJson = nlohmann::json::parse(readBuffer);
-        if (responseJson.contains("error")) {
-            std::cerr << "Server returned API error: " << responseJson["error"]["message"].get<std::string>() << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-
-        return responseJson["choices"][0]["message"]["content"].get<std::string>();
-
-    } catch (const std::exception& e) {
-        std::cerr << "JSON parsing/HTTP error: " << e.what() << std::endl;
-        std::cerr << "Raw server response was: " << readBuffer << std::endl;
-        std::exit(EXIT_FAILURE);
+    auto responseJson = nlohmann::json::parse(readBuffer);
+    if (responseJson.contains("error")) {
+        spdlog::error("Server returned API error: {}", responseJson["error"]["message"].get<std::string>());
+        throw std::runtime_error("Server returned API error: " + responseJson["error"]["message"].get<std::string>());
     }
+    if(!responseJson.contains("choices") || responseJson["choices"].empty()) {
+        throw std::runtime_error("Invalid response layout from LLM server");
+    }
+
+    return responseJson["choices"][0]["message"]["content"].get<std::string>();
+
+
 }
 
 LLMGateway::LLMParams LLMGateway::parseArgs(int argc, const char** argv) {

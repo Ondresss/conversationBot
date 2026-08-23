@@ -21,7 +21,8 @@
   },
   "llm": {
     "port": 8080,
-    "lang": "en"
+    "lang": "en",
+    "model": "gemma:2b"
   },
   "tts": {
     "lang": "en",
@@ -38,6 +39,7 @@
     "period": 5,
     "imageSpacingPeriod": 1000,
     "triggerWord": "see",
+    "triggerWordMechanism": "ignore",
     "noBufferedImages": 1,
     "compressFormat": "JPEG",
     "analyzers": [

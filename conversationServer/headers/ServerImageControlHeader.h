@@ -4,11 +4,12 @@
 
 #pragma pack(push, 1)
 
-enum class ServerImageStatus{
-    OK,
-    ERROR,
-    SEND,
-    INFO
+enum class ServerImageStatus : uint32_t{
+    OK = 0,
+    ERROR = 1,
+    SEND = 2,
+    INFO = 3,
+    DISCONNECT = 4
 };
 
 struct ServerImageControlHeader {

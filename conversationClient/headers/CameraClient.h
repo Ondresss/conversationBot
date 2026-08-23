@@ -19,6 +19,7 @@ private:
    void recieveServerImageControlHeaderTCP(ServerImageControlHeader& header) const;
    void sendImagesTCP(const ServerImageControlHeader& header,const std::vector<std::vector<uint8_t>>& imagesBuffer) const;
    void sendClientImageHeaderTCP(const ClientImageHeader& header) const;
+   void handleCameraLogic(const ServerImageControlHeader& header);
    std::unique_ptr<CameraHandler> cameraHandler = nullptr;
 
 };

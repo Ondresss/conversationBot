@@ -64,7 +64,6 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                     audioBuffer.clear();
                     continue;
                 }
-                this->releaseWorkers();
                 std::string currentText = this->speechToTextConverter->processAudioChunk(clientStream, audioBuffer);
                 spdlog::info("Audio processed");
                 if (!LanguageValidator::isJunkOrEmpty(currentText)) {
@@ -76,8 +75,11 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                         this->context->waitForFinishedWork();
                         continue;
                     }
-                    this->context->waitForFinishedWork();
-                    spdlog::debug("ConversationServer -> done waiting for finished work");
+                    if((this->sessionParams.triggerWordMechanism == TriggerWordMechanism::WORD && this->containsTriggerWord(currentText)) || this->sessionParams.triggerWordMechanism == TriggerWordMechanism::IGNORE) {
+                        this->releaseWorkers();
+                        this->context->waitForFinishedWork();
+                        spdlog::debug("ConversationServer -> done waiting for finished work");
+                    }
                     LLMPrompt prompt(this->context);
                     LLMPrompt::LLMPromtStructure promptStructure = std::move(prompt.finalizePrompt(client));
                     std::string promptText = promptStructure.toString();
@@ -232,6 +234,7 @@ std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std
         params.binaryPath = llm.value("bin", "");
         params.modelPath = llm.value("instruct", "");
         params.language = llm.value("lang", "en");
+        params.model = llm.value("model", "");
     } else {
         spdlog::error("ConversationServer::loadFromConfig(): Missing 'llm' section in config");
         std::exit(EXIT_FAILURE);
@@ -256,7 +259,7 @@ std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std
         serverInfo.ip = json["info"].value("ip", "0.0.0.0");
     } else {
         spdlog::error("ConversationServer::loadFromConfig(): Missing server info");
-        std::exit(EXIT_FAILURE);
+        throw std::runtime_error("Missing server info");
     }
     SessionParams sessionParams{};
     if (json.contains("wakeWord")) {
@@ -273,7 +276,34 @@ std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std
         spdlog::error("ConversationServer::loadFromConfig(): Missing wake word info");
         sessionParams.useWakeWord = false;
     }
+    if(json.contains("imageServer") ) {
+        if(json["imageServer"].contains("triggerWordMechanism")) {
+            std::string triggerWordMechanism = json["imageServer"]["triggerWordMechanism"];
+            if(triggerWordMechanism == "none") {
+                sessionParams.triggerWordMechanism = TriggerWordMechanism::NONE;
+            } else if(triggerWordMechanism == "ignore") {
+                sessionParams.triggerWordMechanism = TriggerWordMechanism::IGNORE;
+            } else if (triggerWordMechanism == "word") {
+                sessionParams.triggerWordMechanism = TriggerWordMechanism::WORD;
+            } else {
+                spdlog::error("ConversationServer::loadFromConfig(): Invalid trigger word mechanism: {}", triggerWordMechanism);
+                throw std::runtime_error("Invalid trigger word mechanism");
+            }
+            if(json["imageServer"].contains("triggerWord")) {
+                sessionParams.triggerWord = json["imageServer"]["triggerWord"];
+            } else {
+                spdlog::error("ConversationServer::loadFromConfig(): Missing trigger word");
+                throw std::runtime_error("Missing trigger word");
+            }
 
+        } else {
+            spdlog::error("ConversationServer::loadFromConfig(): Missing trigger word mechanism");
+            throw std::runtime_error("Missing trigger word mechanism");
+        }
+    } else {
+        spdlog::error("ConversationServer::loadFromConfig(): Missing image server info");
+        throw std::runtime_error("Missing image server info");
+    }
     spdlog::info("Server attributes loaded successfuly");
     serverInfo.type = ServerType::Conversation;
     return std::make_shared<ConversationServer>(serverInfo,modelPath,llmGateway,configParams,sessionParams);
@@ -306,4 +336,9 @@ void ConversationServer::releaseWorkers() {
     spdlog::debug("ConversationServer::releaseWorkers() -> releasing workers");
     this->context->releaseWorkerGate();
     spdlog::debug("ConversationServer::releaseWorkers() -> workers released");
+}
+
+bool ConversationServer::containsTriggerWord(const std::string& text) {
+    std::regex ignoreRegex(this->sessionParams.triggerWord, std::regex_constants::icase);
+    return std::regex_search(text, ignoreRegex);
 }
