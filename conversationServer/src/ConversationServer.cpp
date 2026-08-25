@@ -46,7 +46,6 @@ void ConversationServer::sendDisconnectResponse(const std::shared_ptr<Client>& c
 void ConversationServer::disconnectAllClients() {
     const auto& clientRegistry = this->context->getClientRegistry();
     clientRegistry->forEachClient([this](const std::shared_ptr<Client>& client) {
-            this->sendDisconnectResponse(client);
             client->disconnect(ServerType::Conversation);
     });
     clientRegistry->clearRegistry();

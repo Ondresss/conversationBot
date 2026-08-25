@@ -75,7 +75,6 @@ void ImageServer::sendDisconnectResponse(std::shared_ptr<Client> client) {
 void ImageServer::disconnectAllClients() {
     const auto& clients = this->context->getClientRegistry();
     clients->forEachClient([this](const std::shared_ptr<Client>& client) {
-        this->sendDisconnectResponse(client);
         client->disconnect(ServerType::Image);
     });
     clients->clearRegistry();
