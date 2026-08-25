@@ -8,17 +8,14 @@ LLMPrompt::LLMPromtStructure LLMPrompt::finalizePrompt(const std::shared_ptr<Cli
         ss << "[CAMERA INPUT]: ";
         for(const auto& point : imageServerAnalysis->pointsOfInterest) {
             if(point.confidence > 0.7) {
-                ss << point.name << "!PAY ATTENTION TO THIS OBJECT!";
+                ss << point.name << "!PAY ATTENTION TO THIS OBJECT!" << "  ";
             }
-            if(point.confidence < 0.3) {
-                ss << point.name << "!THIS OBJECT IS NOT INTERESTING!";
-            }
-            ss << point.name << " ";
         }
     } else {
         spdlog::warn("Image server is not active -> Camera input is not available");
     }
     promptStructure.cameraViewText = std::make_tuple(ss.str(), 6);
+    ss.str("");
     ss.clear();
     ss << "[CONVERSATION INPUT]: ";
     ss << " " << this->context->getConversationServerContext()->getSpeechToTextOutput();

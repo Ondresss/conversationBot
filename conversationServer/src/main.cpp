@@ -19,9 +19,9 @@ int main(int argc,const char** argv) {
         std::shared_ptr<ConversationServer> server = ConversationServer::loadFromConfig("../server_config.json");
         std::shared_ptr<ImageServer> imageServer = ImageServer::loadFromConfig("../server_config.json");
         std::vector<std::shared_ptr<AbstractServer>> servers {server, imageServer};
-        std::unique_ptr<ServerManager> serverManager = std::make_unique<ServerManager>(servers);
-        serverManager->runAll();
-        serverManager->setSharedContextAll(context);
+        ServerManager& serverManager = ServerManager::getInstance();
+        serverManager.setServers(servers);
+        serverManager.setSharedContextAll(context);
         Pistache::Address addr(Pistache::Ipv4::any(), Pistache::Port(8081));
         auto opts = Pistache::Http::Endpoint::options().threads(1);
         auto service = std::make_shared<ServerHandler>(server, context);
@@ -29,8 +29,10 @@ int main(int argc,const char** argv) {
         webServer.init(opts);
         webServer.setHandler(service->getRouter()->handler());
         spdlog::info("Web server started on port {} ",8081);
-        webServer.serve();
-        spdlog::warn("Web server stopped ");
+        webServer.serveThreaded();
+        ServerManager::runAndWait();
+        webServer.shutdown();
+        spdlog::warn("All servers stopped -> Ending process");
 
     } catch (std::exception& e) {
         spdlog::error("Main() -> Application failed: " + std::string(e.what()));

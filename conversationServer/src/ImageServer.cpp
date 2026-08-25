@@ -55,10 +55,43 @@ std::shared_ptr<ImageServer> ImageServer::loadFromConfig(const std::string& file
     return std::make_shared<ImageServer>(serverInfo, params, pointsOfInterestAnalyzer);
 }
 
-void ImageServer::run() {
+void ImageServer::sendDisconnectResponse(std::shared_ptr<Client> client) {
+    ServerImageControlHeader header{};
+    header.status = ServerImageStatus::DISCONNECT;
+    const char* headerPtr = reinterpret_cast<const char*>(&header);
+    ssize_t headerBytesLeft = sizeof(header);
+    while (headerBytesLeft > 0) {
+        ssize_t n = write(client->getDescriptors().videoFd, headerPtr, headerBytesLeft);
+        if (n <= 0) {
+            throw std::runtime_error("ImageServer::sendDisconnectResponse(): Error while writing header to client: "
+                                        + std::string(strerror(errno)));
+        }
+        headerBytesLeft -= n;
+        headerPtr += n;
+    }
+}
+
+
+void ImageServer::disconnectAllClients() {
+    const auto& clients = this->context->getClientRegistry();
+    clients->forEachClient([this](const std::shared_ptr<Client>& client) {
+        this->sendDisconnectResponse(client);
+        client->disconnect(ServerType::Image);
+    });
+    clients->clearRegistry();
+    spdlog::info("ImageServer::disconnectAllClients(): All clients disconnected");
+}
+
+void ImageServer::run(std::stop_token stopToken) {
     try {
         if (!this->serverSocket) throw std::runtime_error("ImageServer::run(): serverSocket is null");
-        while (true) {
+        std::stop_callback stopCb(stopToken, [this]() {
+            if (this->serverSocket) {
+                this->disconnectAllClients();
+                this->serverSocket->shutdown();
+            }
+        });
+        while (!stopToken.stop_requested()) {
             spdlog::info("ImageServer::run(): Waiting for new client....");
             auto client = this->serverSocket->waitForConnection();
             spdlog::info("ImageServer::run(): Client connected but is unauthenticated");
@@ -68,10 +101,10 @@ void ImageServer::run() {
             spdlog::info("Image server: New client connected with IP {}",updatedClient->getIP());
             this->clientThreads.emplace_back(&ImageServer::handleClient, this, updatedClient);
         }
-        } catch (std::exception& e){
-            spdlog::error("ImageServer::run() -> Application failed: " + std::string(e.what()));
-        }
-
+    } catch (std::exception& e){
+        spdlog::error("ImageServer::run() -> ImageServer failed: " + std::string(e.what()));
+    }
+    spdlog::warn("Image Server was stopped");
 }
 
 

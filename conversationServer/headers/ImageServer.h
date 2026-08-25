@@ -25,14 +25,14 @@ public:
     };
     ImageServer(ServerInfo serverInfo, ImageServerParams params, std::shared_ptr<IPointsOfInterestAnalyzer> pointsOfInterestAnalyzer, std::shared_ptr<SharedContext> context = nullptr);
     static std::shared_ptr<ImageServer> loadFromConfig(const std::string& filename);
-    void run() override;
+    void run(std::stop_token stopToken) override;
     void handleClient(std::shared_ptr<Client> client) override;
-
+    void disconnectAllClients() override;
     void sendHeaderTCP(std::shared_ptr<Client> client, ServerImageControlHeader header);
     void recvHeaderTCP(std::shared_ptr<Client> client, ClientImageHeader& header);
     void recieveImageTCP(std::shared_ptr<Client> client, cv::Mat& image);
     void applyPointsOfInterestAnalysis(const std::vector<cv::Mat>& images);
-
+    void sendDisconnectResponse(std::shared_ptr<Client> client);
 private:
     ImageServerParams params{};
     std::shared_ptr<IPointsOfInterestAnalyzer> pointsOfInterestAnalyzer = nullptr;

@@ -19,6 +19,7 @@ public:
     };
     std::shared_ptr<Client> waitForConnection();
     const ServerInfo& getServerInfo() const { return serverInfo; }
+    void shutdown() { ::shutdown(this->fd, SHUT_RDWR); }
 private:
     void init();
     int fd = -1;

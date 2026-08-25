@@ -4,6 +4,7 @@
 #include "ServerSocket.h"
 #include <memory>
 #include <opencv2/photo/ccm.hpp>
+#include <stop_token>
 #include <thread>
 #include <vector>
 #include "SharedContext.h"
@@ -27,8 +28,9 @@ public:
             if (thread.joinable()) thread.join();
         }
     }
-    virtual void run() = 0;
+    virtual void run(std::stop_token stopToken) = 0;
     virtual void handleClient(std::shared_ptr<Client> client) = 0;
+    virtual void disconnectAllClients() = 0;
     void authenticateClient(std::shared_ptr<Client> client);
     void sendAuthResponse(std::shared_ptr<Client> client, ServerAuthStatus status);
 
@@ -49,7 +51,7 @@ public:
 protected:
     std::unique_ptr<ServerSocket> serverSocket = nullptr;
     std::shared_ptr<SharedContext> context = nullptr;
-    std::vector<std::thread> clientThreads;
+    std::vector<std::jthread> clientThreads;
 
 private:
     int getActiveFd(std::shared_ptr<Client> client);

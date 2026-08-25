@@ -13,10 +13,8 @@ public:
         int highestPriority = 10;
         std::string toString() const {
             std::stringstream ss;
-            ss << std::get<0>(this->cameraViewText) << " "
-                << std::get<0>(this->conversationText) << " [Priority: " << std::get<1>(this->cameraViewText)  << "]"
-                << std::get<0>(this->conversationText) << " "
-                << std::get<0>(this->conversationText) << " [Priority: " << std::get<1>(this->conversationText)  << "]";
+            ss << std::get<0>(this->cameraViewText) << "\n"
+                << std::get<0>(this->conversationText) << "\n";
             return ss.str();
         }
     };

@@ -13,6 +13,7 @@ public:
     void removeClient(std::shared_ptr<Client> client);
     void disconnectClient(std::size_t id, ServerType type);
     void forEachClient(const std::function<void(const std::shared_ptr<Client>&)>& func);
+    void clearRegistry();
 private:
     std::shared_mutex clientsMutex;
     std::unordered_map<std::size_t, std::shared_ptr<Client>> clients;

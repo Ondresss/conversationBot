@@ -10,6 +10,8 @@
 #include <iostream>
 #include <memory>
 #include <spdlog/spdlog.h>
+#include <stop_token>
+#include <sys/types.h>
 
 
 ConversationServer::ConversationServer(ServerInfo serverInfo,
@@ -24,11 +26,43 @@ ConversationServer::ConversationServer(ServerInfo serverInfo,
     this->sessionParams = sessionParams;
 };
 
+void ConversationServer::sendDisconnectResponse(const std::shared_ptr<Client>& client) {
+    ServerHeader header{};
+    header.status = static_cast<uint32_t>(ServerStatus::DISCONNECT);
+    header.totalLen = 0;
+    const char* headerPtr = reinterpret_cast<const char*>(&header);
+    ssize_t headerBytesLeft = sizeof(header);
+    while (headerBytesLeft > 0) {
+        ssize_t n = write(client->getDescriptors().audioFd, headerPtr, headerBytesLeft);
+        if (n <= 0) {
+            throw std::runtime_error("ConversationServer::sendDisconnectResponse(): Error while writing header to client: "
+                                        + std::string(strerror(errno)));
+        }
+        headerBytesLeft -= n;
+        headerPtr += n;
+    }
+}
 
-void ConversationServer::run() {
+void ConversationServer::disconnectAllClients() {
+    const auto& clientRegistry = this->context->getClientRegistry();
+    clientRegistry->forEachClient([this](const std::shared_ptr<Client>& client) {
+            this->sendDisconnectResponse(client);
+            client->disconnect(ServerType::Conversation);
+    });
+    clientRegistry->clearRegistry();
+    spdlog::info("ConversationServer::disconnectAllClients(): All clients disconnected");
+}
+
+void ConversationServer::run(std::stop_token stopToken) {
     try {
         if (!this->serverSocket) throw std::runtime_error("ConversationServer::run(): serverSocket is null");
-        while (true) {
+        std::stop_callback stopCb(stopToken, [this]() {
+            if (this->serverSocket) {
+                this->disconnectAllClients();
+                this->serverSocket->shutdown();
+            }
+        });
+        while (!stopToken.stop_requested()) {
             spdlog::info("ConversationServer -> run(): Waiting for new client....");
             auto client = this->serverSocket->waitForConnection();
             spdlog::info("ConversationServer -> run(): New client connected with IP {}",client->getIP());
@@ -42,9 +76,9 @@ void ConversationServer::run() {
             this->clientThreads.emplace_back(&ConversationServer::handleClient, this,updatedClient);
         }
     } catch (std::exception& e){
-        spdlog::error("ConversationServer::run() -> Application failed: " + std::string(e.what()));
-        std::exit(EXIT_FAILURE);
+        spdlog::error("ConversationServer::run() -> ConversationServer failed: " + std::string(e.what()));
     }
+    spdlog::warn("Conversation Server was stopped");
 }
 
 void ConversationServer::handleClient(std::shared_ptr<Client> client) {
@@ -79,6 +113,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                     }
                     if((this->sessionParams.triggerWordMechanism == TriggerWordMechanism::WORD && this->containsTriggerWord(currentText)) || this->sessionParams.triggerWordMechanism == TriggerWordMechanism::IGNORE) {
                         this->releaseWorkers();
+                        this->context->getConversationServerContext()->setSpeechToTextOutput(currentText);
                         this->context->waitForFinishedWork();
                         spdlog::debug("ConversationServer -> done waiting for finished work");
                     }

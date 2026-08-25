@@ -46,13 +46,15 @@ public:
         SessionParams params,
         std::shared_ptr<SharedContext> context = nullptr);
 
-    void run() override;
+    void run(std::stop_token stopToken) override;
     void handleClient(std::shared_ptr<Client> client) override;
+    void disconnectAllClients() override;
     std::vector<float> readAudioFromClient(const std::shared_ptr<Client>& client,uint32_t& status);
     void writeResponse(const std::shared_ptr<Client>& client,const std::vector<std::int16_t>& soundBytes,ServerStatus status);
     bool handleSession(std::shared_ptr<Client> client,const std::string& response);
     static std::shared_ptr<ConversationServer> loadFromConfig(const std::string& filename);
     void sendEmptyResponse(std::shared_ptr<Client> client,std::vector<float>& audioBuffer);
+    void sendDisconnectResponse(const std::shared_ptr<Client>& client);
 private:
     std::shared_ptr<LLMGateway> llmGateway = nullptr;
     std::unique_ptr<SpeechToTextConverter> speechToTextConverter = nullptr;

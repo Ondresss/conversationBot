@@ -5,5 +5,6 @@ enum class ServerStatus {
     TOO_SHORT = 1,
     EMPTY_RESPONSE = 2,
     PARTIAL_RESPONSE = 3,
+    DISCONNECT = 4,
 };
 #pragma pack(pop)

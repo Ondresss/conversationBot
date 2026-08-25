@@ -3,6 +3,12 @@
 #include <shared_mutex>
 #include <spdlog/spdlog.h>
 
+
+void ClientRegistry::clearRegistry() {
+    std::unique_lock<std::shared_mutex> lock(this->clientsMutex);
+    this->clients.clear();
+}
+
 std::shared_ptr<Client> ClientRegistry::addClient(std::shared_ptr<Client> client) {
     spdlog::info("ClientRegistry -> addClient: About to add client to the session registry...");
     std::unique_lock<std::shared_mutex> lock(this->clientsMutex);

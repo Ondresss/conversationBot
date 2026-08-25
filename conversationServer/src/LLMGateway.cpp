@@ -22,8 +22,9 @@ std::string LLMGateway::askLLM(const std::string& text) {
             {"role", "system"},
             {"content", "You are a helpful voice assistant. Speak English only.\n\n"
                         "RULES:\n"
-                        "1. It is OK if the user's English grammar is imperfect or broken. Respond normally.\n"
-                        "3. If the user asks about your age, name, or identity, just say you are an AI assistant and you don't have an age.\n"}
+                        "1. You will recieve inputs from multiple sources (camera view and conversation text).\n"
+                        "2. Combine the inputs to generate a coherent response. Always include all the inputs in your responses."
+                        "3. If the object is person, always respond as if you are seeing them in person."}
         });
     } else if (this->params.language == "cs") {
         messages.push_back({

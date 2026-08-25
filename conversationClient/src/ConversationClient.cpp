@@ -31,8 +31,14 @@ void ConversationClient::run() {
                 this->sendAudioPacket(audioPacket);
 
                 bool streaming = true;
+                bool disconnected = false;
                 while (streaming) {
                     auto [response, status] = this->getResponseFromServer();
+                    if(status == ServerStatus::DISCONNECT) {
+                        streaming = false;
+                        disconnected = true;
+                        continue;
+                    }
 
                     if (status == ServerStatus::TOO_SHORT) {
                         spdlog::warn("Sentence was too short");
@@ -52,6 +58,10 @@ void ConversationClient::run() {
                     if (status == ServerStatus::OK) {
                         streaming = false;
                     }
+                }
+                if(disconnected) {
+                    spdlog::warn("Disconnected from server");
+                    break;
                 }
 
                 auto& ctx = this->audioHandler->getPlaybackContextData();
