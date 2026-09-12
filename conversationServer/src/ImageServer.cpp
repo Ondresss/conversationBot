@@ -1,25 +1,29 @@
 #include "../headers/ImageServer.h"
+#include "core/IAnalyzer.h"
+#include "core/IFaceDetector.h"
 #include "core/IPointsOfInterestAnalyzer.h"
+#include "yuNetFaceModule/YuNetFaceDetector.h"
 #include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <opencv2/core/mat.hpp>
+#include <opencv2/dnn/dnn.hpp>
 #include <spdlog/spdlog.h>
 #include <sys/types.h>
-ImageServer::ImageServer(ServerInfo serverInfo, ImageServerParams params, std::shared_ptr<IPointsOfInterestAnalyzer> pointsOfInterestAnalyzer, std::shared_ptr<SharedContext> context) : AbstractServer(serverInfo, context), params(std::move(params)), pointsOfInterestAnalyzer(std::move(pointsOfInterestAnalyzer)) {}
+#include <unordered_map>
+ImageServer::ImageServer(ServerInfo serverInfo, ImageServerParams params, std::unordered_map<std::string, std::shared_ptr<IAnalyzer>> analyzers, std::shared_ptr<SharedContext> context) : AbstractServer(serverInfo, context), params(std::move(params)), analyzers(std::move(analyzers)) {}
 
 std::shared_ptr<ImageServer> ImageServer::loadFromConfig(const std::string& filename) {
     std::ifstream ifs(filename);
     if (!ifs.is_open()) {
-        spdlog::error("ImageServer::loadfromConfig(): Could not open file {}", filename);
-        std::exit(EXIT_FAILURE);
+        throw std::runtime_error("ImageServer::loadFromConfig(): Could not open file " + filename);
     }
     std::stringstream ss;
     ss << ifs.rdbuf();
     nlohmann::json json = nlohmann::json::parse(ss.str());
     ImageServerParams params{};
     ServerInfo serverInfo{};
-    std::shared_ptr<IPointsOfInterestAnalyzer> pointsOfInterestAnalyzer = nullptr;
+    std::unordered_map<std::string, std::shared_ptr<IAnalyzer>> analyzers;
     if(json.contains("imageServer")) {
         if(!json["imageServer"].contains("period")
             || !json["imageServer"].contains("noBufferedImages")
@@ -37,22 +41,48 @@ std::shared_ptr<ImageServer> ImageServer::loadFromConfig(const std::string& file
         if(!json["imageServer"].contains("analyzers")) {
             throw std::runtime_error("ImageServer::loadFromConfig(): missing analyzers field");
         }
-        for(const auto& analyzer : json["imageServer"]["analyzers"]) {
-            const auto& type = analyzer["type"];
-            if(type["analyzerType"] == "pointsOfInterest") {
-                if(type["modelType"] == "yolo") {
-                    pointsOfInterestAnalyzer = std::make_shared<YoloAnalyzer>(YoloAnalyzer::YoloParams{.cocoClassesFile = analyzer["classPath"], .netModelPath = analyzer["modelPath"]});
-                }
-
-            }
+        ImageServer::loadAnalyzers(analyzers, json);
+        if(analyzers.empty()) {
+            throw std::runtime_error("ImageServer::loadFromConfig(): No analyzers loaded");
         }
-        if(!pointsOfInterestAnalyzer) throw std::runtime_error("ImageServer::loadFromConfig(): Failed to load pointsOfInterest analyzer");
-
     } else {
         throw std::runtime_error("ImageServer::loadFromConfig(): No ImageServer section in config");
     }
     serverInfo.type = ServerType::Image;
-    return std::make_shared<ImageServer>(serverInfo, params, pointsOfInterestAnalyzer);
+    return std::make_shared<ImageServer>(serverInfo, params, analyzers);
+}
+
+void ImageServer::loadAnalyzers(std::unordered_map<std::string, std::shared_ptr<IAnalyzer>>& analyzers, const nlohmann::json& config) {
+    analyzers.clear();
+    if (!config["imageServer"].contains("analyzers")) {
+        throw std::runtime_error("ImageServer::loadAnalyzers(): No analyzers section in config");
+    }
+    for(const auto& analyzer : config["imageServer"]["analyzers"]) {
+        const auto& type = analyzer["type"];
+        if(type["analyzerType"] == "pointsOfInterest") {
+            if(type["modelType"] == "yolo") {
+                analyzers[type["analyzerType"]] = std::make_shared<YoloAnalyzer>(YoloAnalyzer::YoloParams{.cocoClassesFile = analyzer["classPath"], .netModelPath = analyzer["modelPath"]});
+            }
+        }
+        if(type["analyzerType"] == "faceAnalyzer") {
+            if(type["modelType"] == "yuNet") {
+                std::string modelPath = analyzer["modelPath"].get<std::string>();
+                int width = static_cast<int>(analyzer["inputWidth"]);
+                int height = static_cast<int>(analyzer["inputHeight"]);
+
+                float scoreThreshold = analyzer.value("scoreThreshold", 0.9f);
+                float nmsThreshold = analyzer.value("nmsThreshold", 0.3f);
+
+                analyzers[type["analyzerType"]] = std::make_shared<YuNetFaceDetector>(
+                    modelPath,
+                    cv::Size(width, height),
+                    scoreThreshold,
+                    nmsThreshold
+                );
+        }
+
+    }
+}
 }
 
 void ImageServer::sendDisconnectResponse(std::shared_ptr<Client> client) {
@@ -122,25 +152,29 @@ void ImageServer::sendHeaderTCP(std::shared_ptr<Client> client, ServerImageContr
 
 void ImageServer::handleClient(std::shared_ptr<Client> client) {
     auto clientRegistry = this->context->getClientRegistry();
+    auto imageServerContext = this->context->getImageServerContext();
     try {
         spdlog::info("Image server: Handling client with IP {}", client->getIP());
         std::vector<cv::Mat> bufferedFrames(this->params.noBufferedImages);
         ServerImageControlHeader header{.status = ServerImageStatus::OK, .periodMs = this->params.period, .imageCount = this->params.noBufferedImages, .compressType = "JPEG",.imageSpacingPeriod = this->params.imageSpacingPeriod};
         while (true) {
-            this->context->acquireWorkerGate();
+            client->getClientSync().acquireWorkerGate();
             this->context->switchActiveStateForCache(ServerType::Image, true);
-            spdlog::info("ImageServer: Acquired worker gate");
+            spdlog::info("ImageServer: Acquired worker gate for client {}", client->getId());
             this->sendHeaderTCP(client, header);
             for (std::size_t i{0}; i < this->params.noBufferedImages; ++i) {
                 this->recieveImageTCP(client, bufferedFrames[i]);
-                spdlog::info("Image server: Received image {}", i);
+                spdlog::info("Image server: Received image {} for client {}", i, client->getId());
             }
-            spdlog::info("Image server: total {} images recieved and buffered",this->params.noBufferedImages);
-            this->applyPointsOfInterestAnalysis(bufferedFrames);
-            auto imageServerContext = this->context->getImageServerContext();
-            imageServerContext->addCurrentAnalysis(this->currentPointsOfInterest, client, bufferedFrames[0]);
-            spdlog::debug("Image Server: Finished latch count down for client {}", client->getId());
-            this->context->countDownFinishedWorkLatch();
+            spdlog::info("Image server: total {} images recieved and buffered for client {}", this->params.noBufferedImages, client->getId());
+            cv::Mat frame = cv::imdecode(bufferedFrames.at(0), cv::IMREAD_COLOR);
+            if (frame.empty()) {
+                throw std::runtime_error("ImageServer: Failed to decode image from TCP stream");
+            }
+            auto analysis = this->analyzeImages(bufferedFrames);
+            imageServerContext->addCurrentAnalysis(analysis, client, bufferedFrames[0]);
+            client->getClientSync().countDownFinishedWorkLatch();
+            spdlog::debug("Image server: Finished latch count down for client {}", client->getId());
         }
     } catch (std::exception& e) {
         spdlog::error("ImageServer run: " + std::string(e.what()));
@@ -179,13 +213,37 @@ void ImageServer::recieveImageTCP(std::shared_ptr<Client> client, cv::Mat& image
     image = cv::Mat(1, totalImageBytes, CV_8UC1, imagePtrStart).clone();
     delete[] imagePtrStart;
 }
-void ImageServer::applyPointsOfInterestAnalysis(const std::vector<cv::Mat>& images) {
-    cv::Mat frame = images.at(0);
-    this->currentPointsOfInterest = this->pointsOfInterestAnalyzer->analyze(frame);
-    if(this->currentPointsOfInterest.empty()) {
-        spdlog::warn("No points of interest found");
+
+std::shared_ptr<ImageAnalysis> ImageServer::analyzeImages(const std::vector<cv::Mat>& images) {
+    cv::Mat rawFrame = images.at(0);
+    cv::Mat frame = cv::imdecode(rawFrame, cv::IMREAD_COLOR);
+    if (frame.empty()) {
+        throw std::runtime_error("ImageServer: Failed to decode image from TCP stream");
     }
-    for (const auto& point : this->currentPointsOfInterest) {
+    auto it = this->analyzers.find("pointsOfInterest");
+    if (it == this->analyzers.end()) {
+        throw std::runtime_error("ImageServer::analyzeImages(): pointsOfInterest analyzer not found");
+    }
+    auto pointsOfInterestAnalyzer = std::dynamic_pointer_cast<IPointsOfInterestAnalyzer>(it->second);
+    if (!pointsOfInterestAnalyzer) {
+        throw std::runtime_error("ImageServer::analyzeImages(): invalid type for pointsOfInterest analyzer");
+    }
+    auto itFaces = this->analyzers.find("faceAnalyzer");
+    if (itFaces == this->analyzers.end()) {
+        throw std::runtime_error("ImageServer::analyzeImages(): faceAnalyzer not found");
+    }
+    auto facesBoxesAnalyzer = std::dynamic_pointer_cast<IFaceDetector>(itFaces->second);
+    if (!facesBoxesAnalyzer) {
+        throw std::runtime_error("ImageServer::analyzeImages(): invalid type for faceAnalyzer");
+    }
+
+    std::vector<PointOfInterest> pointsOfInterest = pointsOfInterestAnalyzer->analyze(frame);
+    std::vector<cv::Rect> facesBoxes = facesBoxesAnalyzer->detectFaces(frame);
+    for (const auto& point : pointsOfInterest) {
         spdlog::debug("PointOfInterest: name={}, confidence={}, boundingBox=[{},{},{},{}]", point.name, point.confidence, point.boundingBox.x, point.boundingBox.y, point.boundingBox.width, point.boundingBox.height);
     }
+    for (const auto& faceBox : facesBoxes) {
+        spdlog::debug("FaceBox: x={}, y={}, width={}, height={}", faceBox.x, faceBox.y, faceBox.width, faceBox.height);
+    }
+    return std::make_shared<ImageAnalysis>(pointsOfInterest, facesBoxes);
 }

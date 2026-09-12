@@ -10,7 +10,8 @@ find_package(Boost REQUIRED COMPONENTS filesystem)
 find_package(spdlog REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(SQLite3 REQUIRED)
-find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui imgcodecs dnn)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui imgcodecs
+                                        dnn objdetect)
 
 
 add_library(yoloAnalyzer STATIC
@@ -19,6 +20,14 @@ add_library(yoloAnalyzer STATIC
 )
 target_include_directories(yoloAnalyzer PUBLIC modules)
 target_link_libraries(yoloAnalyzer PUBLIC ${OpenCV_LIBS} spdlog::spdlog)
+
+add_library(yuNetAnalyzer STATIC
+    modules/yuNetFaceModule/YuNetFaceDetector.cpp
+    modules/yuNetFaceModule/YuNetFaceDetector.h
+)
+target_include_directories(yuNetAnalyzer PUBLIC modules)
+target_link_libraries(yuNetAnalyzer PUBLIC ${OpenCV_LIBS} spdlog::spdlog)
+
 
 add_executable(${TARGET_NAME}
         src/main.cpp
@@ -61,6 +70,8 @@ add_executable(${TARGET_NAME}
         headers/LLMPrompt.h
         src/LLMPrompt.cpp
         src/SharedContext.cpp
+        headers/ClientSync.h
+        headers/ImageAnalysis.h
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE
@@ -71,6 +82,7 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 target_link_libraries(${TARGET_NAME} PRIVATE
         yoloAnalyzer
+        yuNetAnalyzer
         sherpa-onnx-c-api
         pthread
         dl
@@ -81,5 +93,5 @@ target_link_libraries(${TARGET_NAME} PRIVATE
         spdlog::spdlog
         pistache
         SQLite::SQLite3
-        PRIVATE ${OpenCV_LIBS}
+        ${OpenCV_LIBS}
 )

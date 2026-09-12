@@ -1,9 +1,9 @@
 #pragma once
 #include <opencv2/opencv.hpp>
 #include "PointOfInterest.h"
+#include "core/IAnalyzer.h"
 
-class IPointsOfInterestAnalyzer {
+class IPointsOfInterestAnalyzer : public IAnalyzer {
 public:
-    virtual ~IPointsOfInterestAnalyzer() = default;
     virtual std::vector<PointOfInterest> analyze(const cv::Mat& image) = 0;
 };

@@ -61,6 +61,6 @@ private:
     std::unique_ptr<TextToSpeechConverter> textToSpeechConverter = nullptr;
     SessionParams sessionParams{};
 
-    void releaseWorkers();
+    void releaseWorkers(std::shared_ptr<Client>& client);
     bool containsTriggerWord(const std::string& text);
 };

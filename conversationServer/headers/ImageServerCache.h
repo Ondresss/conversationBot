@@ -8,6 +8,7 @@
 #include <opencv2/opencv.hpp>
 #include "../modules/core/PointOfInterest.h"
 #include "Client.h"
+#include "ImageAnalysis.h"
 #include <atomic>
 class ImageServerCache {
 public:
@@ -29,7 +30,7 @@ public:
     };
     ImageServerCache() = default;
     ~ImageServerCache() = default;
-    void addCurrentAnalysis(const std::vector<PointOfInterest>& data, std::shared_ptr<Client> client, const cv::Mat& inputImage);
+    void addCurrentAnalysis(std::shared_ptr<ImageAnalysis> analysis, std::shared_ptr<Client> client, const cv::Mat& inputImage);
     const std::shared_ptr<AnalyzedImageData>& getClientsAnalysis(std::size_t clientId) const;
     void switchActiveState(bool state) { this->active = state; }
     bool isActive() const { return active; }

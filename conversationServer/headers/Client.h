@@ -2,6 +2,7 @@
 // Created by andrew on 4/18/26.
 //
 #pragma once
+#include "ClientSync.h"
 #include "ConversationSession.h"
 #include "ServerType.h"
 #include <chrono>
@@ -54,6 +55,7 @@ public:
     }
 
     nlohmann::json serialize();
+    ClientSync& getClientSync() { return clientSync; }
 private:
     std::chrono::steady_clock::time_point startTime;
     std::shared_mutex mutex;
@@ -64,4 +66,5 @@ private:
     std::vector<ClientHistory> historyList;
     bool isConnected = true;
     std::unique_ptr<ConversationSession> session = nullptr;
+    ClientSync clientSync;
 };

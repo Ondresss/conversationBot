@@ -98,7 +98,7 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                     audioBuffer.clear();
                     continue;
                 }
-                this->context->updateFinishedWorkLatch();
+                client->getClientSync().updateFinishedWorkLatch();
                 spdlog::debug("ConversationServer -> work latch updated");
                 std::string currentText = this->speechToTextConverter->processAudioChunk(clientStream, audioBuffer);
                 spdlog::info("Audio processed");
@@ -111,9 +111,9 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                         continue;
                     }
                     if((this->sessionParams.triggerWordMechanism == TriggerWordMechanism::WORD && this->containsTriggerWord(currentText)) || this->sessionParams.triggerWordMechanism == TriggerWordMechanism::IGNORE) {
-                        this->releaseWorkers();
+                        this->releaseWorkers(client);
                         this->context->getConversationServerContext()->setSpeechToTextOutput(currentText);
-                        this->context->waitForFinishedWork();
+                        client->getClientSync().waitForFinishedWork();
                         spdlog::debug("ConversationServer -> done waiting for finished work");
                     }
                     LLMPrompt prompt(this->context);
@@ -256,12 +256,10 @@ std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std
             modelPath.modelName   = "whisper";
         }
         else {
-            spdlog::error("ConversationServer::loadFromConfig(): Unknown or missing active STT model: {}", activeModel);
-            std::exit(EXIT_FAILURE);
+            throw std::runtime_error("Unknown or missing active STT model: " + activeModel);
         }
     } else {
-        spdlog::error("ConversationServer::loadFromConfig(): Missing 'STT' or 'active_model' in config");
-        std::exit(EXIT_FAILURE);
+        throw std::runtime_error("Missing 'STT' or 'active_model' in config");
     }
     if (json.contains("llm")) {
         auto llm = json["llm"];
@@ -272,8 +270,7 @@ std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std
         params.model = llm.value("model", "");
         params.ip = llm.value("ip", "127.0.0.1");
     } else {
-        spdlog::error("ConversationServer::loadFromConfig(): Missing 'llm' section in config");
-        std::exit(EXIT_FAILURE);
+        throw std::runtime_error("Missing 'llm' section in config");
     }
     if (json.contains("tts")) {
         if (json["tts"].value("lang","en") == "cs") {
@@ -367,11 +364,11 @@ void ConversationServer::sendEmptyResponse(std::shared_ptr<Client> client,std::v
     audioBuffer.clear();
 }
 
-void ConversationServer::releaseWorkers() {
-    this->context->updateFinishedWorkLatch();
-    spdlog::debug("ConversationServer::releaseWorkers() -> releasing workers");
-    this->context->releaseWorkerGate();
-    spdlog::debug("ConversationServer::releaseWorkers() -> workers released");
+void ConversationServer::releaseWorkers(std::shared_ptr<Client>& client) {
+    client->getClientSync().updateFinishedWorkLatch();
+    spdlog::debug("ConversationServer::releaseWorkers() -> releasing workers for client {}", client->getId());
+    client->getClientSync().releaseWorkerGate();
+    spdlog::debug("ConversationServer::releaseWorkers() -> workers released for client {}", client->getId());
 }
 
 bool ConversationServer::containsTriggerWord(const std::string& text) {

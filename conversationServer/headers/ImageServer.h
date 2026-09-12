@@ -1,4 +1,5 @@
 #include "ClientImageHeader.h"
+#include "ImageAnalysis.h"
 #include "ServerSocket.h"
 #include <cstddef>
 #include <cstdint>
@@ -12,8 +13,10 @@
 #include <opencv2/opencv.hpp>
 #include "../modules/core/IPointsOfInterestAnalyzer.h"
 #include <fstream>
+#include <unordered_map>
 #include "../modules/yoloModule/YoloAnalyzer.h"
 #include "core/PointOfInterest.h"
+#include "../modules/core/IFaceDetector.h"
 
 class ImageServer : public AbstractServer {
 public:
@@ -23,7 +26,7 @@ public:
         std::string compressFormat = "JPEG";
         std::size_t imageSpacingPeriod = 1;
     };
-    ImageServer(ServerInfo serverInfo, ImageServerParams params, std::shared_ptr<IPointsOfInterestAnalyzer> pointsOfInterestAnalyzer, std::shared_ptr<SharedContext> context = nullptr);
+    ImageServer(ServerInfo serverInfo, ImageServerParams params, std::unordered_map<std::string, std::shared_ptr<IAnalyzer>> analyzers, std::shared_ptr<SharedContext> context = nullptr);
     static std::shared_ptr<ImageServer> loadFromConfig(const std::string& filename);
     void run(std::stop_token stopToken) override;
     void handleClient(std::shared_ptr<Client> client) override;
@@ -31,10 +34,11 @@ public:
     void sendHeaderTCP(std::shared_ptr<Client> client, ServerImageControlHeader header);
     void recvHeaderTCP(std::shared_ptr<Client> client, ClientImageHeader& header);
     void recieveImageTCP(std::shared_ptr<Client> client, cv::Mat& image);
-    void applyPointsOfInterestAnalysis(const std::vector<cv::Mat>& images);
+    std::shared_ptr<ImageAnalysis> analyzeImages(const std::vector<cv::Mat>& images);
     void sendDisconnectResponse(std::shared_ptr<Client> client);
 private:
     ImageServerParams params{};
-    std::shared_ptr<IPointsOfInterestAnalyzer> pointsOfInterestAnalyzer = nullptr;
-    std::vector<PointOfInterest> currentPointsOfInterest;
+    std::unordered_map<std::string, std::shared_ptr<IAnalyzer>> analyzers;
+
+    static void loadAnalyzers(std::unordered_map<std::string, std::shared_ptr<IAnalyzer>>& analyzers, const nlohmann::json& config);
 };

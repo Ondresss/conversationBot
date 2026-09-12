@@ -50,7 +50,6 @@ void ServerHandler::getClientProcessedImage(const Pistache::Rest::Request& reque
         }
         auto clientId = params.get("clientId").value();
         std::size_t cId = std::stoul(clientId);
-        this->context->waitForFinishedWork();
         auto imageCache = this->context->getImageServerContext();
         auto imageAnalysis = imageCache->getClientsAnalysis(cId);
         if(!imageAnalysis) {

@@ -52,6 +52,17 @@
         },
         "modelPath": "/home/andrew/conversationBot/conversationServer/imageAnalysisModels/yolo/yolo11l.onnx",
         "classPath": "/home/andrew/conversationBot/conversationServer/imageAnalysisModels/yolo/cocoClasses.txt"
+      },
+      {
+        "type": {
+          "analyzerType": "faceAnalyzer",
+          "modelType": "yuNet"
+        },
+        "modelPath": "/home/andrew/conversationBot/conversationServer/imageAnalysisModels/yuNet/face_detection_yunet_2023mar.onnx",
+        "inputWidth": 320,
+        "inputHeight": 320,
+        "scoreThreshold":0.9 ,
+        "nmsThreshold": 0.3
       }
     ]
   },
