@@ -12,6 +12,18 @@ YoloAnalyzer::YoloAnalyzer(const YoloParams& params) : params(params) {
     this->load_net(this->net);
 }
 
+cv::Mat YoloAnalyzer::cropToPerson(const cv::Mat& frame, const std::vector<PointOfInterest>& poi) {
+    if (poi.empty()) {
+        return frame;
+    }
+    for (const auto& p : poi) {
+        if (p.name == "person") {
+            return frame(p.boundingBox).clone();
+        }
+    }
+    return cv::Mat();
+}
+
 std::vector<PointOfInterest> YoloAnalyzer::analyze(const cv::Mat& frame) {
     cv::Mat processedFrame = this->preprocess(frame);
     cv::Mat blob;

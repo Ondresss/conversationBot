@@ -61,8 +61,16 @@
         "modelPath": "/home/andrew/conversationBot/conversationServer/imageAnalysisModels/yuNet/face_detection_yunet_2023mar.onnx",
         "inputWidth": 320,
         "inputHeight": 320,
-        "scoreThreshold":0.9 ,
+        "scoreThreshold":0.5 ,
         "nmsThreshold": 0.3
+      },
+      {
+        "type": {
+          "analyzerType": "emotionAnalyzer",
+          "modelType": "EfficientNet"
+        },
+        "modelPath": "/home/andrew/conversationBot/conversationServer/imageAnalysisModels/efficientNet/emotion_classifier.onnx",
+        "classesPath": "/home/andrew/conversationBot/conversationServer/imageAnalysisModels/efficientNet/classes.txt"
       }
     ]
   },

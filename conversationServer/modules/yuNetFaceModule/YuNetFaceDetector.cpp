@@ -1,6 +1,6 @@
 #include "YuNetFaceDetector.h"
 
-YuNetFaceDetector::YuNetFaceDetector(const std::string& modelPath, const cv::Size& inputSize, float scoreThreshold, float nmsThreshold) {
+YuNetFaceDetector::YuNetFaceDetector(const std::string& modelPath, const cv::Size& inputSize, float scoreThreshold, float nmsThreshold) : inputSize(inputSize) {
     this->detector = cv::FaceDetectorYN::create(
         modelPath,
         "",
@@ -12,7 +12,9 @@ YuNetFaceDetector::YuNetFaceDetector(const std::string& modelPath, const cv::Siz
 std::vector<cv::Rect> YuNetFaceDetector::detectFaces(const cv::Mat& frame) {
     std::vector<cv::Rect> faceBoxes;
 
-    if (frame.empty()) return faceBoxes;
+    if (frame.empty()) {
+        throw std::invalid_argument("YuNetFaceDetector::detectFaces: frame is empty");
+    }
 
     float scaleX = static_cast<float>(frame.cols) / this->inputSize.width;
     float scaleY = static_cast<float>(frame.rows) / this->inputSize.height;

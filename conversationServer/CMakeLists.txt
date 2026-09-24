@@ -28,6 +28,12 @@ add_library(yuNetAnalyzer STATIC
 target_include_directories(yuNetAnalyzer PUBLIC modules)
 target_link_libraries(yuNetAnalyzer PUBLIC ${OpenCV_LIBS} spdlog::spdlog)
 
+add_library(emotionAnalyzer STATIC
+    modules/emotionModule/EmotionAnalyzer.cpp
+    modules/emotionModule/EmotionAnalyzer.h
+)
+target_include_directories(emotionAnalyzer PUBLIC modules)
+target_link_libraries(emotionAnalyzer PUBLIC ${OpenCV_LIBS} spdlog::spdlog)
 
 add_executable(${TARGET_NAME}
         src/main.cpp
@@ -83,6 +89,7 @@ target_include_directories(${TARGET_NAME} PRIVATE
 target_link_libraries(${TARGET_NAME} PRIVATE
         yoloAnalyzer
         yuNetAnalyzer
+        emotionAnalyzer
         sherpa-onnx-c-api
         pthread
         dl

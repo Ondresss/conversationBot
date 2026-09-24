@@ -13,7 +13,7 @@
 class ImageServerCache {
 public:
     struct AnalyzedImageData {
-        std::vector<PointOfInterest> pointsOfInterest;
+        std::shared_ptr<ImageAnalysis> imageAnalysis = nullptr;
         cv::Mat processedImage;
         cv::Mat originalImage;
         std::string timestamp;
@@ -21,8 +21,12 @@ public:
         nlohmann::json serialize() const {
             nlohmann::json jsonResponse;
             jsonResponse["pointsOfInterest"] = nlohmann::json::array();
-            for (const auto& point : pointsOfInterest) {
+            for (const auto& point : imageAnalysis->pointsOfInterest) {
                 jsonResponse["pointsOfInterest"].push_back(point.serialize());
+            }
+            jsonResponse["people"] = nlohmann::json::array();
+            for (const auto& person : imageAnalysis->people) {
+                jsonResponse["people"].push_back(person.serialize());
             }
             jsonResponse["timestamp"] = timestamp;
             return jsonResponse;

@@ -6,10 +6,14 @@ LLMPrompt::LLMPromtStructure LLMPrompt::finalizePrompt(const std::shared_ptr<Cli
     std::stringstream ss;
     if(this->context->getImageServerContext()->isActive()) {
         ss << "[CAMERA INPUT]: ";
-        for(const auto& point : imageServerAnalysis->pointsOfInterest) {
-            if(point.confidence > 0.7) {
+        for(const auto& point : imageServerAnalysis->imageAnalysis->pointsOfInterest) {
+            if(point.confidence > 0.5) {
                 ss << point.name << "!PAY ATTENTION TO THIS OBJECT!" << "  ";
             }
+        }
+        ss << "[PEOPLE ON CAMERA]: ";
+        for(int i = 0; i < imageServerAnalysis->imageAnalysis->people.size(); i++) {
+            ss << "Person " << i + 1 << "  " << "Emotion: " << imageServerAnalysis->imageAnalysis->people[i].emotion << "  ";
         }
     } else {
         spdlog::warn("Image server is not active -> Camera input is not available");

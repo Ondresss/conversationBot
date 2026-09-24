@@ -19,6 +19,7 @@ public:
 
     YoloAnalyzer(const YoloParams& params);
     std::vector<PointOfInterest> analyze(const cv::Mat& frame) override;
+    cv::Mat cropToPerson(const cv::Mat& frame, const std::vector<PointOfInterest>& poi) override;
 
 private:
     cv::dnn::Net net;

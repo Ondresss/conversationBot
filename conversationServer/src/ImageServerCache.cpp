@@ -14,12 +14,12 @@ void ImageServerCache::addCurrentAnalysis(std::shared_ptr<ImageAnalysis> analysi
     std::unique_lock<std::shared_mutex> lock(this->cacheMutex);
     auto it = this->cache.find(client->getId());
     if(it == this->cache.end()) {
-        this->cache[client->getId()] = std::make_shared<AnalyzedImageData>(AnalyzedImageData{.pointsOfInterest = analysis->pointsOfInterest, .processedImage = this->processImage(analysis->pointsOfInterest, decodedImage), .originalImage = inputImage.clone(), .timestamp = client->getUptime()});
+        this->cache[client->getId()] = std::make_shared<AnalyzedImageData>(AnalyzedImageData{.imageAnalysis = analysis, .processedImage = processed, .originalImage = inputImage.clone(), .timestamp = client->getUptime()});
         return;
     }
     auto analyzedData = this->cache[client->getId()];
-    analyzedData->pointsOfInterest = analysis->pointsOfInterest;
-    analyzedData->processedImage = this->processImage(analysis->pointsOfInterest, decodedImage);
+    analyzedData->imageAnalysis = analysis;
+    analyzedData->processedImage = processed;
     analyzedData->originalImage = inputImage.clone();
     analyzedData->timestamp = client->getUptime();
 }

@@ -15,6 +15,7 @@
 #include <fstream>
 #include <unordered_map>
 #include "../modules/yoloModule/YoloAnalyzer.h"
+#include "../modules/emotionModule/EmotionAnalyzer.h"
 #include "core/PointOfInterest.h"
 #include "../modules/core/IFaceDetector.h"
 
@@ -25,6 +26,17 @@ public:
         uint32_t noBufferedImages = 1;
         std::string compressFormat = "JPEG";
         std::size_t imageSpacingPeriod = 1;
+    };
+    struct ScopeLatchGuard {
+        Client& client;
+        bool dismissed = false;
+        explicit ScopeLatchGuard(Client& c) : client(c) {}
+        ~ScopeLatchGuard() {
+            if (!dismissed) {
+                client.getClientSync().countDownFinishedWorkLatch();
+            }
+        }
+        void dismiss() { dismissed = true; }
     };
     ImageServer(ServerInfo serverInfo, ImageServerParams params, std::unordered_map<std::string, std::shared_ptr<IAnalyzer>> analyzers, std::shared_ptr<SharedContext> context = nullptr);
     static std::shared_ptr<ImageServer> loadFromConfig(const std::string& filename);
@@ -41,4 +53,5 @@ private:
     std::unordered_map<std::string, std::shared_ptr<IAnalyzer>> analyzers;
 
     static void loadAnalyzers(std::unordered_map<std::string, std::shared_ptr<IAnalyzer>>& analyzers, const nlohmann::json& config);
+    std::vector<PersonAnalysis> analyzePeople(std::vector<PointOfInterest> pointsOfInterest, const cv::Mat& image, const std::unordered_map<std::string, std::shared_ptr<IAnalyzer>>& analyzers);
 };
