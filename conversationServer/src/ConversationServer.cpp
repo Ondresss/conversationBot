@@ -110,11 +110,15 @@ void ConversationServer::handleClient(std::shared_ptr<Client> client) {
                         this->sendEmptyResponse(client,audioBuffer);
                         continue;
                     }
-                    if((this->sessionParams.triggerWordMechanism == TriggerWordMechanism::WORD && this->containsTriggerWord(currentText)) || this->sessionParams.triggerWordMechanism == TriggerWordMechanism::IGNORE) {
-                        this->releaseWorkers(client);
-                        this->context->getConversationServerContext()->setSpeechToTextOutput(currentText);
-                        client->getClientSync().waitForFinishedWork();
-                        spdlog::debug("ConversationServer -> done waiting for finished work");
+                    if(this->context->getImageServerContext()->isActive()) {
+                        if((this->sessionParams.triggerWordMechanism == TriggerWordMechanism::WORD && this->containsTriggerWord(currentText)) || this->sessionParams.triggerWordMechanism == TriggerWordMechanism::IGNORE) {
+                            this->releaseWorkers(client);
+                            this->context->getConversationServerContext()->setSpeechToTextOutput(currentText);
+                            client->getClientSync().waitForFinishedWork();
+                            spdlog::debug("ConversationServer -> done waiting for finished work");
+                        }
+                    } else {
+                        spdlog::warn("ImageServerContext is not active for client [id={}]", client->getId());
                     }
                     LLMPrompt prompt(this->context);
                     LLMPrompt::LLMPromtStructure promptStructure = std::move(prompt.finalizePrompt(client));

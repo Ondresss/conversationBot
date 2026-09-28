@@ -13,9 +13,9 @@ class ServerHandler : public Pistache::Http::Handler {
 public:
 
     std::shared_ptr<Pistache::Tcp::Handler> clone() const override {
-        return std::make_shared<ServerHandler>(this->server, this->context);
+        return std::make_shared<ServerHandler>(this->context);
     }
-    ServerHandler(std::shared_ptr<ConversationServer> server_,std::shared_ptr<SharedContext> context_) : server(std::move(server_)), context(std::move(context_)) {
+    ServerHandler(std::shared_ptr<SharedContext> context_) : context(std::move(context_)) {
         this->setupRestRoutes();
         spdlog::debug("ServerHandler created");
     }
@@ -36,6 +36,5 @@ public:
     }
 private:
     Pistache::Rest::Router router;
-    std::shared_ptr<ConversationServer> server;
     std::shared_ptr<SharedContext> context = nullptr;
 };

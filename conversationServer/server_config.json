@@ -31,11 +31,12 @@
     "model_path_en": "/home/andrew/conversationBot/conversationServer/ttsModels/en_US-amy-medium.onnx",
     "model_path_cs": "/home/andrew/conversationBot/conversationServer/ttsModels/cs_CZ-jirka-medium.onnx"
   },
-  "info": {
+  "conversationServer": {
     "port": 9999,
     "ip": "0.0.0.0"
   },
   "imageServer": {
+    "active": true,
     "port": 9998,
     "ip": "0.0.0.0",
     "period": 5,

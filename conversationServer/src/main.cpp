@@ -5,7 +5,7 @@
 #include "../headers/ConversationServer.h"
 #include <pistache/net.h>
 #include "../headers/ServerHandler.h"
-#include "../headers/ImageServer.h"
+#include "../headers/ServerFactory.h"
 #include <spdlog/spdlog.h>
 #include <vector>
 #include <thread>
@@ -13,18 +13,16 @@
 #include "../headers/ServerManager.h"
 int main(int argc,const char** argv) {
     try {
-
-        AbstractServer::initLogging();
         std::shared_ptr<SharedContext> context = std::make_shared<SharedContext>();
-        std::shared_ptr<ConversationServer> server = ConversationServer::loadFromConfig("../server_config.json");
-        std::shared_ptr<ImageServer> imageServer = ImageServer::loadFromConfig("../server_config.json");
-        std::vector<std::shared_ptr<AbstractServer>> servers {server, imageServer};
+        AbstractServer::initLogging();
+        ServerFactory factory("../server_config.json");
+        std::vector<std::shared_ptr<AbstractServer>> servers = factory.createActiveServers();
         ServerManager& serverManager = ServerManager::getInstance();
         serverManager.setServers(servers);
         serverManager.setSharedContextAll(context);
         Pistache::Address addr(Pistache::Ipv4::any(), Pistache::Port(8081));
         auto opts = Pistache::Http::Endpoint::options().threads(1);
-        auto service = std::make_shared<ServerHandler>(server, context);
+        auto service = std::make_shared<ServerHandler>(context);
         Pistache::Http::Endpoint webServer(addr);
         webServer.init(opts);
         webServer.setHandler(service->getRouter()->handler());

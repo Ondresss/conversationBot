@@ -78,6 +78,8 @@ add_executable(${TARGET_NAME}
         src/SharedContext.cpp
         headers/ClientSync.h
         headers/ImageAnalysis.h
+        headers/ServerFactory.h
+        src/ServerFactory.cpp
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE
