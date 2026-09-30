@@ -291,9 +291,9 @@ std::shared_ptr<ConversationServer> ConversationServer::loadFromConfig(const std
     std::shared_ptr<LLMGateway> llmGateway = std::make_shared<LLMGateway>(params);
     ServerInfo serverInfo;
 
-    if (json.contains("info")) {
-        serverInfo.port = json["info"].value("port", 9999);
-        serverInfo.ip = json["info"].value("ip", "0.0.0.0");
+    if (json.contains("conversationServer")) {
+        serverInfo.port = json["conversationServer"].value("port", 9999);
+        serverInfo.ip = json["conversationServer"].value("ip", "0.0.0.0");
     } else {
         spdlog::error("ConversationServer::loadFromConfig(): Missing server info");
         throw std::runtime_error("Missing server info");

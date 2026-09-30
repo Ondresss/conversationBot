@@ -15,7 +15,7 @@ int main(int argc,const char** argv) {
     try {
         std::shared_ptr<SharedContext> context = std::make_shared<SharedContext>();
         AbstractServer::initLogging();
-        ServerFactory factory("../server_config.json");
+        ServerFactory factory("/app/server_config.json");
         std::vector<std::shared_ptr<AbstractServer>> servers = factory.createActiveServers();
         ServerManager& serverManager = ServerManager::getInstance();
         serverManager.setServers(servers);

@@ -2,6 +2,7 @@
 // Created by andrew on 5/24/26.
 //
 #include "../headers/LanguageValidator.h"
+#include <algorithm>
 
 bool LanguageValidator::validateEnglish(const std::string& text) {
     std::locale loc("en_US.UTF-8");

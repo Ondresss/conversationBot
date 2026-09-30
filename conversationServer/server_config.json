@@ -2,20 +2,20 @@
   "STT": {
     "active_model": "senseVoice",
     "senseVoice": {
-      "model_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/senseVoice/model.onnx",
-      "tokens_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/senseVoice/tokens.txt",
+      "model_path": "/app/sherpaModels/senseVoice/model.onnx",
+      "tokens_path": "/app/sherpaModels/senseVoice/tokens.txt",
       "language": "en"
     },
     "zipformer": {
-      "encoder_path": "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/encoder-epoch-99-avg-1-chunk-16-left-128.onnx",
-      "decoder_path": "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/decoder-epoch-99-avg-1-chunk-16-left-128.onnx",
-      "tokens_path": "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/tokens.txt",
-      "joiner_path": "/home/andrew/conversationBot/conversationServer/sherpa-onnx-streaming-zipformer-en-2023-06-26/joiner-epoch-99-avg-1-chunk-16-left-128.onnx"
+      "encoder_path": "/app/sherpa-onnx-streaming-zipformer-en-2023-06-26/encoder-epoch-99-avg-1-chunk-16-left-128.onnx",
+      "decoder_path": "/app/sherpa-onnx-streaming-zipformer-en-2023-06-26/decoder-epoch-99-avg-1-chunk-16-left-128.onnx",
+      "tokens_path": "/app/sherpa-onnx-streaming-zipformer-en-2023-06-26/tokens.txt",
+      "joiner_path": "/app/sherpa-onnx-streaming-zipformer-en-2023-06-26/joiner-epoch-99-avg-1-chunk-16-left-128.onnx"
     },
     "whisper": {
-      "encoder_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/sherpa-onnx-whisper-base/base-encoder.int8.onnx",
-      "decoder_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/sherpa-onnx-whisper-base/base-decoder.int8.onnx",
-      "tokens_path": "/home/andrew/conversationBot/conversationServer/sherpaModels/sherpa-onnx-whisper-base/base-tokens.txt",
+      "encoder_path": "/app/sherpaModels/sherpa-onnx-whisper-base/base-encoder.int8.onnx",
+      "decoder_path": "/app/sherpaModels/sherpa-onnx-whisper-base/base-decoder.int8.onnx",
+      "tokens_path": "/app/sherpaModels/sherpa-onnx-whisper-base/base-tokens.txt",
       "language": "cs"
     }
   },
@@ -28,8 +28,8 @@
   },
   "tts": {
     "lang": "en",
-    "model_path_en": "/home/andrew/conversationBot/conversationServer/ttsModels/en_US-amy-medium.onnx",
-    "model_path_cs": "/home/andrew/conversationBot/conversationServer/ttsModels/cs_CZ-jirka-medium.onnx"
+    "model_path_en": "/app/ttsModels/en_US-amy-medium.onnx",
+    "model_path_cs": "/app/ttsModels/cs_CZ-jirka-medium.onnx"
   },
   "conversationServer": {
     "port": 9999,
@@ -51,18 +51,18 @@
           "analyzerType": "pointsOfInterest",
           "modelType": "yolo"
         },
-        "modelPath": "/home/andrew/conversationBot/conversationServer/imageAnalysisModels/yolo/yolo11l.onnx",
-        "classPath": "/home/andrew/conversationBot/conversationServer/imageAnalysisModels/yolo/cocoClasses.txt"
+        "modelPath": "/app/imageAnalysisModels/yolo/yolo11l.onnx",
+        "classPath": "/app/imageAnalysisModels/yolo/cocoClasses.txt"
       },
       {
         "type": {
           "analyzerType": "faceAnalyzer",
           "modelType": "yuNet"
         },
-        "modelPath": "/home/andrew/conversationBot/conversationServer/imageAnalysisModels/yuNet/face_detection_yunet_2023mar.onnx",
+        "modelPath": "/app/imageAnalysisModels/yuNet/face_detection_yunet_2023mar.onnx",
         "inputWidth": 320,
         "inputHeight": 320,
-        "scoreThreshold":0.5 ,
+        "scoreThreshold": 0.5,
         "nmsThreshold": 0.3
       },
       {
@@ -70,8 +70,8 @@
           "analyzerType": "emotionAnalyzer",
           "modelType": "EfficientNet"
         },
-        "modelPath": "/home/andrew/conversationBot/conversationServer/imageAnalysisModels/efficientNet/emotion_classifier.onnx",
-        "classesPath": "/home/andrew/conversationBot/conversationServer/imageAnalysisModels/efficientNet/classes.txt"
+        "modelPath": "/app/imageAnalysisModels/efficientNet/emotion_classifier.onnx",
+        "classesPath": "/app/imageAnalysisModels/efficientNet/classes.txt"
       }
     ]
   },
