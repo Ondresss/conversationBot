@@ -1,10 +1,10 @@
 #include "../headers/LLMPrompt.h"
 
 LLMPrompt::LLMPromtStructure LLMPrompt::finalizePrompt(const std::shared_ptr<Client>& client) const {
-    auto& imageServerAnalysis = this->context->getImageServerContext()->getClientsAnalysis(client->getId());
     LLMPrompt::LLMPromtStructure promptStructure;
     std::stringstream ss;
     if(this->context->getImageServerContext()->isActive()) {
+        auto& imageServerAnalysis = this->context->getImageServerContext()->getClientsAnalysis(client->getId());
         ss << "[CAMERA INPUT]: ";
         for(const auto& point : imageServerAnalysis->imageAnalysis->pointsOfInterest) {
             if(point.confidence > 0.5) {

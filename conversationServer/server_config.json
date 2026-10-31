@@ -36,7 +36,7 @@
     "ip": "0.0.0.0"
   },
   "imageServer": {
-    "active": true,
+    "active": false,
     "port": 9998,
     "ip": "0.0.0.0",
     "period": 5,

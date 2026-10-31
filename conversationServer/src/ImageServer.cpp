@@ -169,6 +169,7 @@ void ImageServer::disconnectAllClients() {
 }
 
 void ImageServer::run(std::stop_token stopToken) {
+    this->context->getImageServerContext()->switchActiveState(true);
     try {
         if (!this->serverSocket) throw std::runtime_error("ImageServer::run(): serverSocket is null");
         std::stop_callback stopCb(stopToken, [this]() {
