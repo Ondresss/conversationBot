@@ -11,5 +11,13 @@
       ]
     }
   },
-  "workspaceFolder": "/app"
+  "workspaceFolder": "/app",
+  
+  "runArgs": [
+    "-p", "9999:9999",
+    "-p", "9998:9998",
+    "-p", "11434:11434"
+  ],
+
+  "forwardPorts": [9999, 9998, 11434]
 }
