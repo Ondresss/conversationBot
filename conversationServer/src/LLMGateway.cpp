@@ -14,17 +14,18 @@ std::size_t LLMGateway::writeCallback(void* contents, size_t size, size_t nmemb,
 }
 
 std::string LLMGateway::askLLM(const std::string& text) {
-    std::string readBuffer;
+    std::string readBuffer; 
     nlohmann::json json;
     nlohmann::json messages = nlohmann::json::array();
+
     if (this->params.language == "en") {
         messages.push_back({
             {"role", "system"},
             {"content", "You are a helpful voice assistant. Speak English only.\n\n"
                         "RULES:\n"
-                        "1. You will recieve inputs from multiple sources (camera view and conversation text).\n"
-                        "2. Combine the inputs to generate a coherent response. Always include all the inputs in your responses."
-                        "3. If the object is person, always respond as if you are seeing them in person."}
+                        "1. You will receive inputs from multiple sources (camera view and conversation text).\n"
+                        "2. Combine the inputs to generate a coherent response.\n"
+                        "3. If the object is a person, always respond as if you are seeing them in person."}
         });
     } else if (this->params.language == "cs") {
         messages.push_back({
@@ -34,16 +35,19 @@ std::string LLMGateway::askLLM(const std::string& text) {
     }
 
     messages.push_back({{"role", "user"}, {"content", text}});
+
     if (!this->params.model.empty()) {
         json["model"] = this->params.model;
     } else {
-        throw std::runtime_error("LLM Doesnt have a model to use");
+        throw std::runtime_error("LLM doesn't have a model specified");
     }
+
     json["messages"] = messages;
     json["max_tokens"] = 256;
-    json["stream"] = false;
+    json["stream"] = false; 
 
     std::string jsonData = json.dump();
+
     curl_easy_setopt(this->curl.get(), CURLOPT_WRITEFUNCTION, LLMGateway::writeCallback);
     curl_easy_setopt(this->curl.get(), CURLOPT_WRITEDATA, &readBuffer);
     curl_easy_setopt(this->curl.get(), CURLOPT_POSTFIELDS, jsonData.c_str());
@@ -52,22 +56,38 @@ std::string LLMGateway::askLLM(const std::string& text) {
     CURLcode res = curl_easy_perform(this->curl.get());
 
     if (res != CURLE_OK) {
-        throw std::runtime_error("LLMGateway::sendText: Error while sending request via Curl");
+        spdlog::error("CURL error: {}", curl_easy_strerror(res));
+        throw std::runtime_error("LLMGateway::askLLM: Error sending request via Curl");
     }
 
-    auto responseJson = nlohmann::json::parse(readBuffer);
-    if (responseJson.contains("error")) {
-        spdlog::error("Server returned API error: {}", responseJson["error"]["message"].get<std::string>());
-        throw std::runtime_error("Server returned API error: " + responseJson["error"]["message"].get<std::string>());
+    nlohmann::json responseJson;
+    try {
+        responseJson = nlohmann::json::parse(readBuffer);
+    } catch (const std::exception& e) {
+        spdlog::error("Failed to parse JSON response: {}. Buffer content: {}", e.what(), readBuffer);
+        throw std::runtime_error("Invalid JSON response from LLM server");
     }
-    if(!responseJson.contains("choices") || responseJson["choices"].empty()) {
+
+    if (responseJson.contains("error")) {
+        std::string errMsg;
+        if (responseJson["error"].is_string()) {
+            errMsg = responseJson["error"].get<std::string>();
+        } else if (responseJson["error"].is_object() && responseJson["error"].contains("message")) {
+            errMsg = responseJson["error"]["message"].get<std::string>();
+        } else {
+            errMsg = responseJson["error"].dump();
+        }
+        spdlog::error("Server returned API error: {}", errMsg);
+        throw std::runtime_error("Server returned API error: " + errMsg);
+    }
+
+    if (!responseJson.contains("choices") || !responseJson["choices"].is_array() || responseJson["choices"].empty()) {
+        spdlog::error("Unexpected response structure: {}", responseJson.dump());
         throw std::runtime_error("Invalid response layout from LLM server");
     }
 
     return responseJson["choices"][0]["message"]["content"].get<std::string>();
-
 }
-
 LLMGateway::LLMParams LLMGateway::parseArgs(int argc, const char** argv) {
     LLMParams params;
     for (int i = 0; i < argc; ++i) {
