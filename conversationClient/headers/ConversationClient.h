@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <sys/socket.h>
@@ -30,4 +31,5 @@ public:
 private:
     std::vector<std::int16_t> responseBuffer;
     std::shared_ptr<AudioHandler> audioHandler = nullptr;
+    std::size_t sentenceLength = 0;
 };

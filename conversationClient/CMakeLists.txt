@@ -9,15 +9,18 @@ find_path(RTAUDIO_INCLUDE_DIR RtAudio.h)
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
 find_package(PkgConfig REQUIRED)
-
+find_package(Curses REQUIRED)
 pkg_check_modules(GSTREAMER REQUIRED IMPORTED_TARGET gstreamer-1.0)
 pkg_check_modules(GSTREAMER_APP REQUIRED IMPORTED_TARGET gstreamer-app-1.0)
 
+include_directories(${CURSES_INCLUDE_DIR})
 add_executable(conversationBot
         src/main.cpp
         headers/AudioHandler.h
         src/AudioHandler.cpp
         headers/SilenceFilter.h
+        headers/AudioMenu.h
+        src/AudioMenu.cpp
         src/SilenceFilter.cpp
         headers/IAudioFilter.h
         headers/ConversationBot.h
@@ -53,6 +56,7 @@ target_link_libraries(conversationBot PRIVATE
         asound
         pthread
         spdlog::spdlog
+        ${CURSES_LIBRARIES}
         fmt::fmt
         ${GSTREAMER_LIBRARIES}
         ${GSTREAMER_APP_LIBRARIES}

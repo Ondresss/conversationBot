@@ -25,66 +25,67 @@ void ConversationClient::run() {
             spdlog::debug("Start of speech detected\n");
             this->sendAudioPacket(audioPacket);
             break;
-            case AudioType::ENDOFSPEECH: {
-                noSilencePackets = 0;
-                spdlog::debug("End of speech detected");
-                this->sendAudioPacket(audioPacket);
-
-                bool streaming = true;
-                bool disconnected = false;
-                while (streaming) {
-                    auto [response, status] = this->getResponseFromServer();
-                    if(status == ServerStatus::DISCONNECT) {
-                        streaming = false;
-                        disconnected = true;
-                        continue;
-                    }
-
-                    if (status == ServerStatus::TOO_SHORT) {
-                        spdlog::warn("Sentence was too short");
-                        streaming = false;
-                        continue;
-                    }
-                    if (status == ServerStatus::EMPTY_RESPONSE) {
-                        spdlog::info("Received empty response");
-                        streaming = false;
-                        continue;
-                    }
-
-                    if (!response.empty()) {
-                        this->audioHandler->setPlaybackContextData(response);
-                    }
-
-                    if (status == ServerStatus::OK) {
-                        streaming = false;
-                    }
-                }
-                if(disconnected) {
-                    spdlog::warn("Disconnected from server");
-                    break;
+        case AudioType::ENDOFSPEECH: {
+            noSilencePackets = 0;
+            spdlog::debug("End of speech detected");
+            this->sendAudioPacket(audioPacket);
+            spdlog::info("Sentence total length: {}",this->sentenceLength);
+            this->sentenceLength = 0;
+            bool streaming = true;
+            bool disconnected = false;
+            while (streaming) {
+                auto [response, status] = this->getResponseFromServer();
+                if(status == ServerStatus::DISCONNECT) {
+                    streaming = false;
+                    disconnected = true;
+                    continue;
                 }
 
-                auto& ctx = this->audioHandler->getPlaybackContextData();
-                {
-                    std::lock_guard lk(ctx.mtx);
-                    ctx.doneTalking = false;
-                    ctx.canTalk = true;
-                    spdlog::debug("Master notified worker to start talking");
+                if (status == ServerStatus::TOO_SHORT) {
+                    spdlog::warn("Sentence was too short");
+                    streaming = false;
+                    continue;
                 }
-                ctx.cv.notify_one();
+                if (status == ServerStatus::EMPTY_RESPONSE) {
+                    spdlog::info("Received empty response");
+                    streaming = false;
+                    continue;
+                }
 
-                {
-                    std::unique_lock lk(ctx.mtx);
-                    ctx.cv.wait(lk, [&ctx] { return ctx.doneTalking; });
+                if (!response.empty()) {
+                    this->audioHandler->setPlaybackContextData(response);
                 }
-                spdlog::info("Done talking");
-                ctx.doneTalking = false;
-                ctx.canTalk = false;
+
+                if (status == ServerStatus::OK) {
+                    streaming = false;
+                }
+            }
+            if(disconnected) {
+                spdlog::warn("Disconnected from server");
                 break;
             }
+
+            auto& ctx = this->audioHandler->getPlaybackContextData();
+            {
+                std::lock_guard lk(ctx.mtx);
+                ctx.doneTalking = false;
+                ctx.canTalk = true;
+                spdlog::debug("Master notified worker to start talking");
+            }
+            ctx.cv.notify_one();
+
+            {
+                std::unique_lock lk(ctx.mtx);
+                ctx.cv.wait(lk, [&ctx] { return ctx.doneTalking; });
+            }
+            spdlog::info("Done talking");
+            ctx.doneTalking = false;
+            ctx.canTalk = false;
+            break;
+        }
         case AudioType::SPEECH:
             noSilencePackets = 0;
-            spdlog::debug("Speech detected");
+            this->sentenceLength++;
             this->sendAudioPacket(audioPacket);
             break;
         default:
@@ -109,9 +110,7 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
         headerLeft -= sent;
         headerPtr += sent;
     }
-    spdlog::debug("Sent tcp audio header -> [status,length] = [{},{}]",clientHeader.status,clientHeader.packetLen);
     if (!audioPacket.samples.empty()) {
-        spdlog::debug("TCP audio packet wasnt empty");
         const char* dataPtr = reinterpret_cast<const char*>(audioPacket.samples.data());
         ssize_t dataLeft = audioPacket.samples.size() * sizeof(float);
 
@@ -124,7 +123,6 @@ void ConversationClient::sendAudioPacket(const AudioPacket& audioPacket) {
             dataLeft -= sent;
             dataPtr += sent;
         }
-        spdlog::debug("Sent nonempty TCP packet");
     }
 }
 
