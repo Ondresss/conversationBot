@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "AudioMenu.h"
 #include "AudioPacket.h"
 #include "AudioType.h"
 #include "IAudioFilter.h"
@@ -26,7 +27,8 @@ public:
   };
   AudioHandler(unsigned int noChannels, unsigned int firstChanel,
                unsigned int sampleRate, unsigned int bufferFrames,
-               double noiseThreshold = 0.1f, int endSentenceThreshold = 45);
+               double noiseThreshold = 0.1f, int endSentenceThreshold = 45,int deviceID = -1);
+  AudioHandler(); 
 
   static int recordCallback(void *outputBuffer, void *inputBuffer,
                             unsigned int nBufferFrames, double streamTime,
@@ -60,17 +62,20 @@ public:
   }
   PlaybackContext &getPlaybackContextData() { return this->playbackContext; }
   int getSpeechCounter() const { return this->speechCounter; }
-
+  const RtAudio::StreamParameters& getStreamParameters() { return this->parameters; }
+  RtAudioFormat getFormat() const { return this->format; }
 private:
   void init();
   AudioType applyFilters(const float *samples, unsigned int nBufferFrames);
   void loadDeviceIds();
 
+  std::unique_ptr<AudioMenu> audioMenu = nullptr;
+  RtAudioFormat format = RTAUDIO_SINT16;
   RtAudio::StreamParameters parameters;
   RtAudio audio;
   RtAudio playbackAudio;
-  unsigned int sampleRate;
-  unsigned int bufferFrames;
+  unsigned int sampleRate = 16000;
+  unsigned int bufferFrames = 512;
   std::vector<std::tuple<unsigned int, RtAudio::DeviceInfo>> devices;
   std::vector<std::shared_ptr<IAudioFilter>> filters;
   std::mutex queueMtx;

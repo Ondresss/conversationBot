@@ -27,7 +27,10 @@ int main(int argc,const char** argv) {
                            "  ./conversationClient -th 0.05 -port 9999\n"
                            "  ./conversationClient --ip 192.168.1.50 -port 8080\n"
                            "  ./conversationClient --ip 192.168.1.50 -port 8080 -sr 16000 -noChannels 1 -eoSentenceTh 45");
-        program.add_argument("-th","--th","-noiceThreshold").help("Silence and noice threshold value").default_value(0.02).scan<'f',float>();
+        program.add_argument("-th","--th","-noiceThreshold")
+       .help("Silence and noice threshold value")
+       .default_value(0.02f)
+       .scan<'f', float>();
         program.add_argument("-ip","--ip").help("Specify IP address of the server").default_value(std::string("0.0.0.0"));
         program.add_argument("-port","--port").help("Specify port of the server").default_value(9999).scan<'i',int>();
         program.add_argument("-sr","-sampleRate","--sr").help("Specify sample rate for audio").default_value(16000).scan<'i',int>();
@@ -39,7 +42,10 @@ int main(int argc,const char** argv) {
         program.add_argument("-noSecondsPeriod","--noSecondsPeriod").help("Specify number of seconds for which will be frames sent").default_value(1).scan<'i',int>();
         program.add_argument("-frameWidth","--frameWidth").help("Specify frame width").default_value(640).scan<'i',int>();
         program.add_argument("-frameHeight","--frameHeight").help("Specify frame height").default_value(480).scan<'i',int>();
+        program.add_argument("-audioMenu","--audioMenu").help("Enable interactive audio menu").flag();
+
         program.parse_args(argc,argv);
+        bool audioMenuEnabled = program.is_used("--audioMenu") || program.is_used("-audioMenu");
         double noiseThreshold = program.get<float>("-th");
         std::string ip = program.get<std::string>("-ip");
         int port = program.get<int>("-port");
@@ -53,7 +59,14 @@ int main(int argc,const char** argv) {
         cameraParams.width = program.get<int>("-frameWidth");
         cameraParams.height = program.get<int>("-frameHeight");
         ConversationBot::initLogging();
-        std::shared_ptr<AudioHandler> handler = std::make_shared<AudioHandler>(noChannels,0,sr,512,noiseThreshold,eoSentenceTh);
+        std::shared_ptr<AudioHandler> handler = nullptr;
+        if(audioMenuEnabled)  {
+            spdlog::info("Audio menu enabled, user will be prompted to select audio device and sample rate");
+            handler = std::make_shared<AudioHandler>();
+        }
+        else {
+             handler = std::make_shared<AudioHandler>(noChannels,0,sr,512,noiseThreshold,eoSentenceTh);
+        }
         ServerInfo conversationServerInfo{ip,port};
         std::shared_ptr<AbstractClient> conversationClient = std::make_shared<ConversationClient>(conversationServerInfo, handler);
         std::shared_ptr<AbstractClient> imageClient = std::make_shared<CameraClient>(ServerInfo{imageIp,imagePort},cameraParams);
