@@ -80,6 +80,15 @@ add_executable(${TARGET_NAME}
         headers/ImageAnalysis.h
         headers/ServerFactory.h
         src/ServerFactory.cpp
+        headers/TelemetryServer.h
+        src/TelemetryServer.cpp
+        headers/TelemetryServerCache.h
+        headers/TelemetryClientData.h
+        headers/TelemetryClientDataHeader.h
+        headers/TelemetryAvailabilityHeader.h
+        headers/TelemetryType.h
+        headers/TelemetryServerStatusHeader.h
+        headers/TelemetryData.h
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE
