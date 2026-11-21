@@ -20,6 +20,7 @@ public:
     struct Descriptor {
        int audioFd = -1;
        int videoFd = -1;
+       int telemetryFd = -1;
     };
     struct ClientHistory {
         std::string question;
@@ -46,8 +47,18 @@ public:
     void setIP(const std::string& ip) { this->clientIP = ip; }
     void setPort(int port_) { this->port = port_; }
     void setID(uint64_t id_) { this->id = id_; }
-    void setImageServerDescriptor(int fd) { descriptors.videoFd = fd; }
-    void setAudioServerDescriptor(int fd) { descriptors.audioFd = fd; }
+    void setImageServerDescriptor(int fd) { 
+        if(this->descriptors.videoFd != -1) throw std::runtime_error("Client " + std::to_string(this->getId()) + "already has active descriptor");
+        this->descriptors.videoFd = fd;
+    }
+    void setAudioServerDescriptor(int fd) { 
+        if(this->descriptors.audioFd != -1) throw std::runtime_error("Client " + std::to_string(this->getId()) + "already has active descriptor");
+        this->descriptors.audioFd = fd;
+    }
+    void setTelemetryServerDescriptor(int fd) { 
+        if(this->descriptors.telemetryFd != -1) throw std::runtime_error("Client " + std::to_string(this->getId()) + "already has active descriptor");
+        this->descriptors.telemetryFd = fd; 
+    }
     void startUptimeMeasurement() { this->startTime = std::chrono::steady_clock::now(); }
     [[nodiscard]] std::string getUptime() const;
     inline void addHistoryEntry(const std::string& question,const std::string& answer) {

@@ -22,8 +22,8 @@
   "llm": {
     "port": 11434,
     "lang": "en",
-    "model": "gemma2:2b",
-    "ip": "127.0.0.1",
+    "model": "qwen3.8:latest",
+    "ip": "158.196.142.246",
     "url": ""
   },
   "tts": {

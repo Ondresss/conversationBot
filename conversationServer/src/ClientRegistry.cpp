@@ -25,6 +25,10 @@ std::shared_ptr<Client> ClientRegistry::addClient(std::shared_ptr<Client> client
             spdlog::debug("ClientRegistry -> addClient: Updating audio server descriptor for client with ID {}", client->getId());
             client_.setAudioServerDescriptor(client->getDescriptors().audioFd);
         }
+        if(client->getDescriptors().telemetryFd != -1) {
+            spdlog::debug("ClientRegistry -> addClient: Updating telemetry server descriptor for client with ID {}", client->getId());
+            client_.setAudioServerDescriptor(client->getDescriptors().telemetryFd);
+        }
         spdlog::info("ClientRegistry addClient: client updated with ID {}", client->getId());
         return clientsIt->second;
     }
@@ -40,7 +44,7 @@ void ClientRegistry::removeClient(std::shared_ptr<Client> client) {
     std::unique_lock<std::shared_mutex> lock(this->clientsMutex);
     try {
         auto client_ = this->clients.at(client->getId());
-        if(client_->getDescriptors().audioFd == -1 && client_->getDescriptors().videoFd == -1) {
+        if(client_->getDescriptors().audioFd == -1 && client_->getDescriptors().videoFd == -1 && client_->getDescriptors().telemetryFd == -1 ) {
             this->clients.erase(client->getId());
         } else {
             spdlog::warn("ClientRegistry removeClient: client still has active descriptors");

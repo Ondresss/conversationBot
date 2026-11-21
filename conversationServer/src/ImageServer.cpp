@@ -233,7 +233,7 @@ void ImageServer::handleClient(std::shared_ptr<Client> client) {
             spdlog::debug("Image server: Finished latch count down for client {}", client->getId());
         }
     } catch (std::exception& e) {
-        spdlog::error("ImageServer run: " + std::string(e.what()));
+        spdlog::error("ImageServer::handleClient: " + std::string(e.what()));
     }
     client->disconnect(ServerType::Image);
     clientRegistry->removeClient(client);

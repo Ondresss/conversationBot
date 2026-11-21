@@ -40,6 +40,8 @@ std::shared_ptr<Client> ServerSocket::waitForConnection() {
         clientSocket->setAudioServerDescriptor(currentClientFd);
     } else if(this->serverInfo.type == ServerType::Image) {
         clientSocket->setImageServerDescriptor(currentClientFd);
+    } else if(this->serverInfo.type == ServerType::Telemetry) {
+        clientSocket->setTelemetryServerDescriptor(currentClientFd);
     }
     return clientSocket;
 }

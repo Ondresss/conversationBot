@@ -38,6 +38,15 @@ void Client::disconnect(ServerType type) {
             this->descriptors.videoFd = -1;
             spdlog::warn("Client with id {} disconnected from image server", this->id);
             break;
+        case ServerType::Telemetry:
+            if(this->descriptors.telemetryFd == -1) {
+                spdlog::warn("Client with id {} disconnected from telemetry server", this->id);
+                break;
+            }
+            close(this->descriptors.videoFd);
+            this->descriptors.videoFd = -1;
+            spdlog::warn("Client with id {} disconnected from telemetry server", this->id);
+            break;
         default:
             throw std::runtime_error("Invalid server type");
     }
