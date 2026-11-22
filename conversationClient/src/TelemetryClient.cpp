@@ -1,11 +1,6 @@
 #include "../headers/TelemetryClient.h"
 
 
-void TelemetryClient::startHandlerWorkers(const std::unordered_map<TelemetryType, std::shared_ptr<BaseSensorConfig>>& sensorConfigs) {
-    for (const auto& [type, config] : sensorConfigs) {
-        this->telemetryHandler->startWorker(std::make_tuple(type, config));
-    }
-}
 
 void TelemetryClient::sendTelemetryDataTCP(const TelemetryData& data) const {
     TelemetryClientDataHeader header;

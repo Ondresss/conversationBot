@@ -64,6 +64,8 @@ add_executable(conversationBot
         headers/ISensor.h
         headers/TelemetryServerStatusHeader.h
         headers/TelemetryAvailabilityHeader.h
+        headers/SensorMenu.h
+        src/SensorMenu.cpp
         ${PERIPHERY_C_SOURCES}
 )
 

@@ -8,13 +8,11 @@
 #include "TelemetryClientDataHeader.h"
 class TelemetryClient : public AbstractClient {
 public:
-    explicit TelemetryClient(ServerInfo info,const std::unordered_map<TelemetryType, std::shared_ptr<BaseSensorConfig>>& sensorConfigs) : AbstractClient(info), 
-    telemetryHandler(std::make_unique<TelemetryHandler>()) {
-        this->startHandlerWorkers(sensorConfigs);
+    explicit TelemetryClient(ServerInfo info,std::shared_ptr<TelemetryHandler> handler) : AbstractClient(info), telemetryHandler(handler) {
+        if(!this->telemetryHandler) throw std::runtime_error("TelemetryClient: telemetryHandler is null");
     }
     void run() override;
 private:
-    void startHandlerWorkers(const std::unordered_map<TelemetryType, std::shared_ptr<BaseSensorConfig>>& sensorConfigs);
     void sendAvailableSensorsTCP() const;
     void sendTelemetryAvailabilityHeaderTCP(const TelemetryAvailabilityHeader& header) const;
     TelemetryServerStatusHeader recieveServerStatusHeaderTCP() const;
